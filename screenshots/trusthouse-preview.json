@@ -1,0 +1,42 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "TrustHouse",
+      "hasCanvas": false,
+      "bodyTextLen": 1548,
+      "bodyTextHash": "54fa599e8972dc7284579a60737c6bf75c1f6458ccd802d2119ef2d3f6dac0f3",
+      "bodyTextPrefix": "TrustHouse Browse homes Lagos · Independent agents · Proof befor",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED",
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+      ],
+      "pageErrors": [],
+      "screenshot": "C:\\Users\\HP\\Desktop\\grok-workspace\\screenshots\\trusthouse-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "TrustHouse",
+      "hasCanvas": false,
+      "bodyTextLen": 1535,
+      "bodyTextHash": "9c6e4acdadf3db2445342776890a4693cd9f9108cb696d2347fc104957c37ab0",
+      "bodyTextPrefix": "TrustHouse Lagos · Independent agents · Proof before payment Fin",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED",
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+      ],
+      "pageErrors": [],
+      "screenshot": "C:\\Users\\HP\\Desktop\\grok-workspace\\screenshots\\trusthouse-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "C:\\Users\\HP\\Desktop\\grok-workspace\\screenshots\\trusthouse-preview.json"
+}

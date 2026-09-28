@@ -1,0 +1,43 @@
+{
+  "url": "http://127.0.0.1:8080/adeola/listings",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "TrustHouse",
+      "hasCanvas": false,
+      "bodyTextLen": 780,
+      "bodyTextHash": "213229dec6da31286713f80dafd2b3be87fe975b8174c1f5557df387dc544961",
+      "bodyTextPrefix": "TrustHouse Adeola Okonkwo Independent agent · Lagos Adeola Okonk",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED",
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED",
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+      ],
+      "pageErrors": [],
+      "screenshot": "C:\\Users\\HP\\Desktop\\grok-workspace\\screenshots\\trusthouse-listings.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "TrustHouse",
+      "hasCanvas": false,
+      "bodyTextLen": 780,
+      "bodyTextHash": "213229dec6da31286713f80dafd2b3be87fe975b8174c1f5557df387dc544961",
+      "bodyTextPrefix": "TrustHouse Adeola Okonkwo Independent agent · Lagos Adeola Okonk",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED",
+        "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+      ],
+      "pageErrors": [],
+      "screenshot": "C:\\Users\\HP\\Desktop\\grok-workspace\\screenshots\\trusthouse-listings-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "C:\\Users\\HP\\Desktop\\grok-workspace\\screenshots\\trusthouse-listings.json"
+}
