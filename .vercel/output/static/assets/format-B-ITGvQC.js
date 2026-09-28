@@ -1,0 +1,1 @@
+function e(e){return new Intl.NumberFormat(`en-NG`,{style:`currency`,currency:`NGN`,maximumFractionDigits:0}).format(e)}function t(t){return`${e(t)} / year`}function n(e){let t=e.replace(/\D/g,``);return t.startsWith(`234`)?t:t.startsWith(`0`)?`234${t.slice(1)}`:t}function r(e,t){return`https://wa.me/${n(e)}?text=${encodeURIComponent(t)}`}export{r as n,t};

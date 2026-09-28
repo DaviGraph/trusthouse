@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-NZYk81nU.js";var t=e(),n=()=>(0,t.jsx)(`main`,{className:`px-4 py-16 text-center`,children:(0,t.jsx)(`p`,{className:`font-display text-xl font-semibold`,children:`Listing not found`})});export{n as notFoundComponent};

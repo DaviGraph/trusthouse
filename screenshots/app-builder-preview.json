@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "TrustHouse",
+      "hasCanvas": false,
+      "bodyTextLen": 1548,
+      "bodyTextHash": "54fa599e8972dc7284579a60737c6bf75c1f6458ccd802d2119ef2d3f6dac0f3",
+      "bodyTextPrefix": "TrustHouse Browse homes Lagos · Independent agents · Proof befor",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "TrustHouse",
+      "hasCanvas": false,
+      "bodyTextLen": 1556,
+      "bodyTextHash": "1b24a92442ce2e8b73d3cf18e12e73efc536db806092c449db1f8107fc01d0a1",
+      "bodyTextPrefix": "TrustHouse Sign in List with us Lagos · Independent agents · Pro",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
