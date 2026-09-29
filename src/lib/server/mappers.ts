@@ -11,6 +11,8 @@ export type ListingRow = {
   bathrooms: number;
   description: string;
   photo_url: string;
+  photo_urls: string[] | null;
+  verification_video_url: string | null;
   proof_id_checked: boolean;
   proof_ownership_seen: boolean;
   proof_onsite_visit: boolean;
@@ -46,6 +48,7 @@ export function mapListing(row: ListingRow): Listing {
     proofOnsiteVisit: Boolean(row.proof_onsite_visit),
     proofOwnerPhone: Boolean(row.proof_owner_phone),
   };
+  const photoUrls = row.photo_urls && row.photo_urls.length > 0 ? row.photo_urls : [row.photo_url].filter(Boolean);
   return {
     id: Number(row.id),
     userId: row.user_id,
@@ -55,7 +58,9 @@ export function mapListing(row: ListingRow): Listing {
     bedrooms: Number(row.bedrooms),
     bathrooms: Number(row.bathrooms),
     description: row.description,
-    photoUrl: row.photo_url,
+    photoUrl: photoUrls[0] ?? row.photo_url,
+    photoUrls,
+    verificationVideoUrl: row.verification_video_url,
     createdAt: iso(row.created_at) ?? new Date().toISOString(),
     trust: trustLevel(proofs),
     ...proofs,

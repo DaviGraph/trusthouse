@@ -26,6 +26,7 @@ export const Route = createFileRoute("/$slug/listings_/$listingId")({
 function ListingDetail() {
   const { agent } = SlugRoute.useLoaderData();
   const { listing } = Route.useLoaderData();
+  const photos = listing.photoUrls.length > 0 ? listing.photoUrls : [listing.photoUrl];
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
@@ -40,11 +41,18 @@ function ListingDetail() {
 
       <div className="mt-4 overflow-hidden rounded-xl bg-surface shadow-card">
         <div className="relative aspect-[16/10] bg-surface-2 sm:aspect-[2/1]">
-          <img src={listing.photoUrl} alt={listing.title} className="size-full object-cover" />
+          <img src={photos[0]} alt={listing.title} className="size-full object-cover" />
           <div className="absolute top-4 left-4">
             <TrustBadge level={listing.trust} />
           </div>
         </div>
+        {photos.length > 1 ? (
+          <div className="flex gap-2 overflow-x-auto p-3">
+            {photos.slice(1).map((url) => (
+              <img key={url} src={url} alt={listing.title} className="h-20 w-28 shrink-0 rounded-md object-cover" />
+            ))}
+          </div>
+        ) : null}
         <div className="grid gap-8 p-5 sm:p-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <h1 className="font-display text-3xl font-semibold">{listing.title}</h1>
@@ -66,6 +74,15 @@ function ListingDetail() {
               </span>
             </div>
             <p className="mt-6 text-[0.95rem] leading-7 text-fg/90">{listing.description}</p>
+            {listing.verificationVideoUrl ? (
+              <div className="mt-6">
+                <h2 className="font-display text-lg font-semibold">Verification video</h2>
+                <p className="mt-1 mb-3 text-sm text-muted">
+                  {agent.displayName.split(" ")[0]}'s walkthrough of this property.
+                </p>
+                <video src={listing.verificationVideoUrl} controls className="w-full rounded-md" />
+              </div>
+            ) : null}
             <div className="mt-6 lg:hidden">
               <InquireDialog listingId={listing.id} listingTitle={listing.title} triggerClassName="w-full" />
             </div>

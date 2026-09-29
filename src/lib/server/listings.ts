@@ -12,7 +12,8 @@ const listingInput = z.object({
   bedrooms: z.coerce.number().int().min(1).max(12),
   bathrooms: z.coerce.number().int().min(1).max(12),
   description: z.string().trim().max(2000).optional().default(""),
-  photoUrl: z.string().trim().min(1).max(2_800_000),
+  photoUrls: z.array(z.string().trim().min(1)).min(1).max(6),
+  verificationVideoUrl: z.string().trim().max(500).optional().nullable().default(null),
   proofIdChecked: z.boolean(),
   proofOwnershipSeen: z.boolean(),
   proofOnsiteVisit: z.boolean(),
@@ -30,8 +31,8 @@ export const listPublicListings = createServerFn({ method: "GET" })
     const sql = await getSql();
     const rows = await sql<ListingRow>`
       select l.id, l.user_id, l.title, l.area, l.yearly_rent, l.bedrooms, l.bathrooms,
-             l.description, l.photo_url, l.proof_id_checked, l.proof_ownership_seen,
-             l.proof_onsite_visit, l.proof_owner_phone, l.created_at
+             l.description, l.photo_url, l.photo_urls, l.verification_video_url, l.proof_id_checked,
+             l.proof_ownership_seen, l.proof_onsite_visit, l.proof_owner_phone, l.created_at
       from listings l
       join agents a on a.user_id = l.user_id
       where a.slug = ${data.slug}
@@ -49,8 +50,8 @@ export const getPublicListing = createServerFn({ method: "GET" })
     const sql = await getSql();
     const rows = await sql<ListingRow>`
       select l.id, l.user_id, l.title, l.area, l.yearly_rent, l.bedrooms, l.bathrooms,
-             l.description, l.photo_url, l.proof_id_checked, l.proof_ownership_seen,
-             l.proof_onsite_visit, l.proof_owner_phone, l.created_at
+             l.description, l.photo_url, l.photo_urls, l.verification_video_url, l.proof_id_checked,
+             l.proof_ownership_seen, l.proof_onsite_visit, l.proof_owner_phone, l.created_at
       from listings l
       join agents a on a.user_id = l.user_id
       where a.slug = ${data.slug} and l.id = ${data.listingId}
@@ -65,8 +66,8 @@ export const listMyListings = createServerFn({ method: "GET" })
     const sql = await getSql();
     const rows = await sql<ListingRow>`
       select id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-             photo_url, proof_id_checked, proof_ownership_seen, proof_onsite_visit,
-             proof_owner_phone, created_at
+             photo_url, photo_urls, verification_video_url, proof_id_checked, proof_ownership_seen,
+             proof_onsite_visit, proof_owner_phone, created_at
       from listings
       where user_id = ${context.userId}
       order by created_at desc
@@ -81,8 +82,8 @@ export const getMyListing = createServerFn({ method: "GET" })
     const sql = await getSql();
     const rows = await sql<ListingRow>`
       select id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-             photo_url, proof_id_checked, proof_ownership_seen, proof_onsite_visit,
-             proof_owner_phone, created_at
+             photo_url, photo_urls, verification_video_url, proof_id_checked, proof_ownership_seen,
+             proof_onsite_visit, proof_owner_phone, created_at
       from listings
       where id = ${id} and user_id = ${context.userId}
       limit 1
@@ -97,16 +98,16 @@ export const createListing = createServerFn({ method: "POST" })
     const sql = await getSql();
     const rows = await sql<ListingRow>`
       insert into listings (
-        user_id, title, area, yearly_rent, bedrooms, bathrooms, description, photo_url,
-        proof_id_checked, proof_ownership_seen, proof_onsite_visit, proof_owner_phone
+        user_id, title, area, yearly_rent, bedrooms, bathrooms, description, photo_url, photo_urls,
+        verification_video_url, proof_id_checked, proof_ownership_seen, proof_onsite_visit, proof_owner_phone
       ) values (
         ${context.userId}, ${data.title}, ${data.area}, ${data.yearlyRent}, ${data.bedrooms},
-        ${data.bathrooms}, ${data.description}, ${data.photoUrl},
-        ${data.proofIdChecked}, ${data.proofOwnershipSeen}, ${data.proofOnsiteVisit}, ${data.proofOwnerPhone}
+        ${data.bathrooms}, ${data.description}, ${data.photoUrls[0]}, ${data.photoUrls},
+        ${data.verificationVideoUrl}, ${data.proofIdChecked}, ${data.proofOwnershipSeen}, ${data.proofOnsiteVisit}, ${data.proofOwnerPhone}
       )
       returning id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-                photo_url, proof_id_checked, proof_ownership_seen, proof_onsite_visit,
-                proof_owner_phone, created_at
+                photo_url, photo_urls, verification_video_url, proof_id_checked, proof_ownership_seen,
+                proof_onsite_visit, proof_owner_phone, created_at
     `;
     return mapListing(rows[0]);
   });
@@ -124,15 +125,17 @@ export const updateListing = createServerFn({ method: "POST" })
         bedrooms = ${data.bedrooms},
         bathrooms = ${data.bathrooms},
         description = ${data.description},
-        photo_url = ${data.photoUrl},
+        photo_url = ${data.photoUrls[0]},
+        photo_urls = ${data.photoUrls},
+        verification_video_url = ${data.verificationVideoUrl},
         proof_id_checked = ${data.proofIdChecked},
         proof_ownership_seen = ${data.proofOwnershipSeen},
         proof_onsite_visit = ${data.proofOnsiteVisit},
         proof_owner_phone = ${data.proofOwnerPhone}
       where id = ${data.id} and user_id = ${context.userId}
       returning id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-                photo_url, proof_id_checked, proof_ownership_seen, proof_onsite_visit,
-                proof_owner_phone, created_at
+                photo_url, photo_urls, verification_video_url, proof_id_checked, proof_ownership_seen,
+                proof_onsite_visit, proof_owner_phone, created_at
     `;
     return rows[0] ? mapListing(rows[0]) : null;
   });

@@ -15,6 +15,7 @@ function Signup() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [bio, setBio] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,7 +39,7 @@ function Signup() {
         return;
       }
       try {
-        await ensureAgentProfile({ data: { displayName: name, phone } });
+        await ensureAgentProfile({ data: { displayName: name, phone, bio } });
       } catch {
         /* profile is created on first dashboard visit if this races */
       }
@@ -84,6 +85,18 @@ function Signup() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="bio">About you or your company</Label>
+              <textarea
+                id="bio"
+                rows={3}
+                placeholder="e.g. Independent agent covering Lekki and Ikoyi, 5 years in the market."
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted">Buyers see this on your public page.</p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="email">Email</Label>

@@ -1,12 +1,14 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ProofToggles } from "@/components/proof-checklist";
-import { LAGOS_AREAS, STOCK_PHOTOS } from "@/lib/constants";
+import { LAGOS_AREAS } from "@/lib/constants";
+import { uploadListingPhoto, uploadVerificationVideo } from "@/lib/upload-client";
 import type { Listing, Proofs } from "@/lib/types";
-import { cn } from "@/lib/utils";
+
+const MAX_PHOTOS = 6;
 
 export type ListingDraft = {
   title: string;
@@ -15,7 +17,8 @@ export type ListingDraft = {
   bedrooms: string;
   bathrooms: string;
   description: string;
-  photoUrl: string;
+  photoUrls: string[];
+  verificationVideoUrl: string | null;
 } & Proofs;
 
 export function listingToDraft(listing?: Listing): ListingDraft {
@@ -26,7 +29,8 @@ export function listingToDraft(listing?: Listing): ListingDraft {
     bedrooms: listing ? String(listing.bedrooms) : "2",
     bathrooms: listing ? String(listing.bathrooms) : "2",
     description: listing?.description ?? "",
-    photoUrl: listing?.photoUrl ?? STOCK_PHOTOS[0].src,
+    photoUrls: listing?.photoUrls ?? [],
+    verificationVideoUrl: listing?.verificationVideoUrl ?? null,
     proofIdChecked: listing?.proofIdChecked ?? false,
     proofOwnershipSeen: listing?.proofOwnershipSeen ?? false,
     proofOnsiteVisit: listing?.proofOnsiteVisit ?? false,
@@ -42,7 +46,8 @@ export function toListingPayload(draft: ListingDraft) {
     bedrooms: Number(draft.bedrooms),
     bathrooms: Number(draft.bathrooms),
     description: draft.description,
-    photoUrl: draft.photoUrl,
+    photoUrls: draft.photoUrls,
+    verificationVideoUrl: draft.verificationVideoUrl,
     proofIdChecked: draft.proofIdChecked,
     proofOwnershipSeen: draft.proofOwnershipSeen,
     proofOnsiteVisit: draft.proofOnsiteVisit,
@@ -62,46 +67,58 @@ export function ListingForm({
   onSubmit: (draft: ListingDraft) => void;
 }) {
   const [draft, setDraft] = useState<ListingDraft>(() => listingToDraft(initial));
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const photoInput = useRef<HTMLInputElement>(null);
-
-  async function uploadPhoto(file?: File) {
-    if (!file) return;
-    setPhotoError(null);
-    if (!file.type.startsWith("image/")) {
-      setPhotoError("Choose an image file, such as JPG, PNG, or WebP.");
-      return;
-    }
-    if (file.size > 12 * 1024 * 1024) {
-      setPhotoError("Choose an image smaller than 12 MB.");
-      return;
-    }
-    setPhotoBusy(true);
-    try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Could not process this image.");
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      bitmap.close();
-      const photoUrl = canvas.toDataURL("image/jpeg", 0.78);
-      if (photoUrl.length > 2_800_000) throw new Error("This image is still too large. Choose a smaller photo.");
-      setDraft((current) => ({ ...current, photoUrl }));
-    } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : "Could not read this image.");
-    } finally {
-      setPhotoBusy(false);
-      if (photoInput.current) photoInput.current.value = "";
-    }
-  }
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   function handle(e: FormEvent) {
     e.preventDefault();
+    if (draft.photoUrls.length === 0) {
+      setUploadError("Add at least one photo before saving.");
+      return;
+    }
     onSubmit(draft);
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const room = MAX_PHOTOS - draft.photoUrls.length;
+    if (room <= 0) {
+      setUploadError(`You can only add up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+    const toUpload = files.slice(0, room);
+    setUploadError(null);
+    setPhotoUploading(true);
+    try {
+      const urls = await Promise.all(toUpload.map(uploadListingPhoto));
+      setDraft((d) => ({ ...d, photoUrls: [...d.photoUrls, ...urls] }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Photo upload failed.");
+    } finally {
+      setPhotoUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  function removePhoto(url: string) {
+    setDraft((d) => ({ ...d, photoUrls: d.photoUrls.filter((p) => p !== url) }));
+  }
+
+  async function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    setVideoUploading(true);
+    try {
+      const url = await uploadVerificationVideo(initial?.id ?? 0, file);
+      setDraft((d) => ({ ...d, verificationVideoUrl: url }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Video upload failed.");
+    } finally {
+      setVideoUploading(false);
+    }
   }
 
   const proofs: Proofs = {
@@ -184,55 +201,51 @@ export function ListingForm({
           onChange={(e) => setDraft({ ...draft, description: e.target.value })}
         />
       </div>
+
       <fieldset className="grid gap-2">
-        <legend className="mb-1 text-sm font-medium">Property photo</legend>
-        <div className="flex flex-col gap-3 rounded-lg bg-surface p-3 shadow-[0_0_0_1px_rgba(28,25,23,0.06)] sm:flex-row sm:items-center">
-          <img src={draft.photoUrl} alt="Selected property" className="aspect-[4/3] w-full rounded-md object-cover sm:w-36" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">Upload a current property photo</p>
-            <p className="mt-1 text-xs leading-5 text-muted">We resize the image before saving. JPG, PNG, or WebP, up to 12 MB.</p>
-            <input
-              ref={photoInput}
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              aria-label="Upload property photo"
-              onChange={(e) => void uploadPhoto(e.target.files?.[0])}
-            />
-            <Button type="button" variant="secondary" size="sm" className="mt-3" disabled={photoBusy} onClick={() => photoInput.current?.click()}>
-              {photoBusy ? "Preparing photo…" : "Choose a photo"}
-            </Button>
+        <legend className="mb-1 text-sm font-medium">
+          Property photos ({draft.photoUrls.length}/{MAX_PHOTOS})
+        </legend>
+        {draft.photoUrls.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {draft.photoUrls.map((url) => (
+              <div key={url} className="group relative aspect-[4/3] overflow-hidden rounded-md">
+                <img src={url} alt="Listing" className="size-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(url)}
+                  className="absolute top-1 right-1 rounded-full bg-black/60 px-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
-        {photoError ? <p role="alert" className="text-sm text-danger">{photoError}</p> : null}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {STOCK_PHOTOS.map((photo) => (
-            <button
-              key={photo.src}
-              type="button"
-              onClick={() => setDraft({ ...draft, photoUrl: photo.src })}
-              className={cn(
-                "overflow-hidden rounded-md transition-[box-shadow] duration-150",
-                draft.photoUrl === photo.src
-                  ? "shadow-[0_0_0_2px_var(--color-primary)]"
-                  : "shadow-[0_0_0_1px_rgba(28,25,23,0.08)]",
-              )}
-            >
-              <img src={photo.src} alt={photo.label} className="aspect-[4/3] w-full object-cover" />
-            </button>
-          ))}
-        </div>
-        <Label htmlFor="photo-url" className="mt-2 text-muted">
-          Or paste a photo URL
-        </Label>
-        <Input
-          id="photo-url"
-          value={draft.photoUrl}
-          onChange={(e) => setDraft({ ...draft, photoUrl: e.target.value })}
-        />
+        ) : null}
+        {draft.photoUrls.length < MAX_PHOTOS ? (
+          <Input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handlePhotoChange} disabled={photoUploading} />
+        ) : (
+          <p className="text-xs text-muted">Maximum {MAX_PHOTOS} photos reached.</p>
+        )}
+        {photoUploading ? <p className="text-xs text-muted">Uploading…</p> : null}
       </fieldset>
+
+      <fieldset className="grid gap-2">
+        <legend className="mb-1 text-sm font-medium">Verification video</legend>
+        <p className="text-xs text-muted">
+          A short walkthrough proving you visited the property. Buyers see this on the listing page.
+        </p>
+        {draft.verificationVideoUrl ? (
+          <video src={draft.verificationVideoUrl} controls className="w-48 rounded-md" />
+        ) : null}
+        <Input type="file" accept="video/mp4,video/quicktime,video/webm" onChange={handleVideoChange} disabled={videoUploading} />
+        {videoUploading ? <p className="text-xs text-muted">Uploading video…</p> : null}
+      </fieldset>
+
+      {uploadError ? <p className="text-sm text-danger">{uploadError}</p> : null}
+
       <ProofToggles proofs={proofs} onChange={(next) => setDraft({ ...draft, ...next })} />
-      <Button type="submit" disabled={pending} size="lg">
+      <Button type="submit" disabled={pending || photoUploading || videoUploading} size="lg">
         {pending ? "Saving…" : submitLabel}
       </Button>
     </form>

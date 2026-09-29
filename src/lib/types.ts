@@ -27,6 +27,8 @@ export type Listing = Proofs & {
   bathrooms: number;
   description: string;
   photoUrl: string;
+  photoUrls: string[];
+  verificationVideoUrl: string | null;
   createdAt: string;
   trust: TrustLevel;
 };
