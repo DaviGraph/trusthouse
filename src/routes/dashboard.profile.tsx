@@ -6,7 +6,6 @@ import {
   Clock,
   ExternalLink,
   FileCheck,
-  FileText,
   Loader2,
   Shield,
   ShieldAlert,
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAgentStore } from "@/lib/agent-store";
 import { getAgentProfile, updateAgentProfile, uploadAgentIdDocument } from "@/lib/server/agents";
 import type { Agent, IdVerificationStatus } from "@/lib/types";
 import { uploadAgentAvatar, uploadVerificationDocument } from "@/lib/upload-client";
@@ -57,7 +57,11 @@ function StatusBadge({ status }: { status: IdVerificationStatus }) {
 }
 
 function AgentProfilePage() {
-  const [agent, setAgent] = useState<Agent | null>(null);
+  // The store is the single source of truth shared with the shell/sidebar.
+  const { agent: storeAgent, setAgent: setStoreAgent } = useAgentStore();
+
+  // Local page state
+  const [agent, setAgentLocal] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -65,23 +69,37 @@ function AgentProfilePage() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [idError, setIdError] = useState<string | null>(null);
 
-  // Form draft state
+  // Editable form fields
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
+  /** Commit an updated agent to both local state and the global store. */
+  function applyAgent(updated: Agent) {
+    setAgentLocal(updated);
+    setStoreAgent(updated); // <-- this makes sidebar/shell re-render immediately
+    setFullName(updated.displayName);
+    setPhone(updated.phone);
+    setBio(updated.bio);
+    setAvatarUrl(updated.avatarUrl ?? null);
+  }
+
   async function loadProfile() {
     try {
       setLoading(true);
-      const profile = await getAgentProfile();
-      if (profile) {
-        setAgent(profile);
-        setFullName(profile.displayName || "");
-        setPhone(profile.phone || "");
-        setBio(profile.bio || "");
-        setAvatarUrl(profile.avatarUrl ?? null);
+      // Prefer data already in the store so the page initialises instantly
+      const cached = storeAgent;
+      if (cached) {
+        setAgentLocal(cached);
+        setFullName(cached.displayName || "");
+        setPhone(cached.phone || "");
+        setBio(cached.bio || "");
+        setAvatarUrl(cached.avatarUrl ?? null);
       }
+      // Always refresh from the server so we get the latest status fields
+      const profile = await getAgentProfile();
+      if (profile) applyAgent(profile);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not load profile.");
     } finally {
@@ -91,6 +109,7 @@ function AgentProfilePage() {
 
   useEffect(() => {
     void loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleProfileSubmit(e: FormEvent) {
@@ -109,11 +128,7 @@ function AgentProfilePage() {
           avatarUrl,
         },
       });
-      setAgent(updated);
-      setFullName(updated.displayName);
-      setPhone(updated.phone);
-      setBio(updated.bio);
-      setAvatarUrl(updated.avatarUrl ?? null);
+      applyAgent(updated);
       toast.success("Profile updated successfully.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update profile.");
@@ -130,17 +145,21 @@ function AgentProfilePage() {
       setAvatarError("Please select a valid image file (JPG, PNG, WebP).");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setAvatarError("Profile photo must be less than 5MB.");
+    if (file.size > 20 * 1024 * 1024) {
+      setAvatarError("Please choose a photo under 20MB.");
       return;
     }
 
     setAvatarError(null);
     setAvatarUploading(true);
+
+    // Show a local preview immediately so the user sees feedback before upload finishes
+    const localPreviewUrl = URL.createObjectURL(file);
+    setAvatarUrl(localPreviewUrl);
+
     try {
       const uploadedUrl = await uploadAgentAvatar(file);
-      setAvatarUrl(uploadedUrl);
-      // Auto-save the new avatar to agent profile
+      // Auto-save the new avatar to the agent profile
       const updated = await updateAgentProfile({
         data: {
           fullName: fullName.trim() || agent?.displayName || "Agent",
@@ -149,9 +168,12 @@ function AgentProfilePage() {
           avatarUrl: uploadedUrl,
         },
       });
-      setAgent(updated);
+      URL.revokeObjectURL(localPreviewUrl);
+      applyAgent(updated);
       toast.success("Profile photo updated.");
     } catch (err) {
+      URL.revokeObjectURL(localPreviewUrl);
+      setAvatarUrl(agent?.avatarUrl ?? null); // revert preview on error
       setAvatarError(err instanceof Error ? err.message : "Failed to upload profile photo.");
     } finally {
       setAvatarUploading(false);
@@ -170,8 +192,7 @@ function AgentProfilePage() {
           avatarUrl: null,
         },
       });
-      setAgent(updated);
-      setAvatarUrl(null);
+      applyAgent(updated);
       toast.success("Profile photo removed.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not remove profile photo.");
@@ -192,15 +213,13 @@ function AgentProfilePage() {
     setIdError(null);
     setIdUploading(true);
     try {
-      // Upload to document storage
+      // Upload to document storage (images are compressed by uploadVerificationDocument)
       const uploadedDocUrl = await uploadVerificationDocument(file);
-      // Submit document and transition verification status to 'pending_review'
+      // Record the document and set status → pending_review on the server
       const updated = await uploadAgentIdDocument({
-        data: {
-          documentUrl: uploadedDocUrl,
-        },
+        data: { documentUrl: uploadedDocUrl },
       });
-      setAgent(updated);
+      applyAgent(updated);
       toast.success("Government ID submitted — pending review.");
     } catch (err) {
       setIdError(err instanceof Error ? err.message : "Failed to upload ID document.");
@@ -369,7 +388,7 @@ function AgentProfilePage() {
             {agent ? (
               <div className="rounded-lg bg-surface-2/60 p-3 text-xs text-muted">
                 <span className="font-medium text-fg">Public profile URL: </span>
-                <span className="font-mono text-primary">trusthouse.ng/{agent.slug}</span>
+                <span className="font-mono text-primary">{window.location.origin}/{agent.slug}</span>
               </div>
             ) : null}
           </div>

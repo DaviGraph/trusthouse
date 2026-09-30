@@ -130,6 +130,21 @@ export const updateAgentProfile = createServerFn({ method: "POST" })
     const name = (data.fullName || data.displayName)!.trim();
     const sql = await getSql();
 
+    const existing = await sql<AgentRow>`
+      select user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+      from agents where user_id = ${context.userId} limit 1
+    `;
+
+    if (!existing[0]) {
+      const slug = await uniqueSlug(sql, slugifyName(name), context.userId);
+      const rows = await sql<AgentRow>`
+        insert into agents (user_id, slug, display_name, phone, bio, avatar_url)
+        values (${context.userId}, ${slug}, ${name}, ${data.phone ?? ""}, ${data.bio ?? ""}, ${data.avatarUrl ?? null})
+        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+      `;
+      return mapAgent(rows[0]);
+    }
+
     if (data.avatarUrl !== undefined) {
       const rows = await sql<AgentRow>`
         update agents
@@ -140,7 +155,6 @@ export const updateAgentProfile = createServerFn({ method: "POST" })
         where user_id = ${context.userId}
         returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
       `;
-      if (!rows[0]) throw new Error("Agent profile not found.");
       return mapAgent(rows[0]);
     }
 
@@ -152,7 +166,6 @@ export const updateAgentProfile = createServerFn({ method: "POST" })
       where user_id = ${context.userId}
       returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
     `;
-    if (!rows[0]) throw new Error("Agent profile not found.");
     return mapAgent(rows[0]);
   });
 
@@ -182,6 +195,22 @@ export const uploadAgentIdDocument = createServerFn({ method: "POST" })
     }
     const docUrl = (data.documentUrl || data.fileUrl || data.file)!;
     const sql = await getSql();
+
+    const existing = await sql<AgentRow>`
+      select user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+      from agents where user_id = ${context.userId} limit 1
+    `;
+
+    if (!existing[0]) {
+      const slug = await uniqueSlug(sql, "agent", context.userId);
+      const rows = await sql<AgentRow>`
+        insert into agents (user_id, slug, display_name, phone, bio, id_document_url, id_verification_status)
+        values (${context.userId}, ${slug}, 'Agent', '', '', ${docUrl}, 'pending_review')
+        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+      `;
+      return mapAgent(rows[0]);
+    }
+
     const rows = await sql<AgentRow>`
       update agents
       set id_document_url = ${docUrl},
@@ -189,7 +218,6 @@ export const uploadAgentIdDocument = createServerFn({ method: "POST" })
       where user_id = ${context.userId}
       returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
     `;
-    if (!rows[0]) throw new Error("Agent profile not found.");
     return mapAgent(rows[0]);
   });
 
