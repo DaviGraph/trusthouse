@@ -1,24 +1,41 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getAdminToken, setAdminToken } from "@/lib/admin-session";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { adminLoginServer } from "@/lib/server/admin-auth";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
 function Login() {
   const { user, isPending } = useCurrentUserState();
+  const [isAdminAuthed, setIsAdminAuthed] = useState<boolean | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (isPending) {
+  useEffect(() => {
+    const token = getAdminToken();
+    if (token) {
+      setIsAdminAuthed(true);
+    } else {
+      setIsAdminAuthed(false);
+    }
+  }, []);
+
+  if (isPending || isAdminAuthed === null) {
     return <div className="min-h-dvh bg-bg" />;
   }
+
+  if (isAdminAuthed) {
+    return <Navigate to="/admin" />;
+  }
+
   if (user) {
     return <Navigate to="/dashboard" />;
   }
@@ -27,17 +44,39 @@ function Login() {
     e.preventDefault();
     setError(null);
     setBusy(true);
+
+    const cleanEmail = email.trim();
+
     try {
-      const { error: err } = await authClient.signIn.email({
-        email,
-        password,
-        callbackURL: "/dashboard",
-      });
-      if (err) {
-        setError(err.message ?? "Could not sign in.");
-        return;
+      // 1. First try Admin authentication based on credentials
+      try {
+        const adminRes = await adminLoginServer({
+          data: { email: cleanEmail, password },
+        });
+        if (adminRes && adminRes.token) {
+          setAdminToken(adminRes.token);
+          window.location.href = "/admin";
+          return;
+        }
+      } catch {
+        // Not an admin credential or admin auth failed, proceed to normal agent authentication
       }
-      window.location.href = "/dashboard";
+
+      // 2. Normal agent user authentication
+      if (authEnabled) {
+        const { error: err } = await authClient.signIn.email({
+          email: cleanEmail,
+          password,
+          callbackURL: "/dashboard",
+        });
+        if (err) {
+          setError(err.message ?? "Could not sign in. Please check your credentials.");
+          return;
+        }
+        window.location.href = "/dashboard";
+      } else {
+        setError("Sign-in is currently disabled.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
     } finally {
@@ -49,8 +88,10 @@ function Login() {
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-card sm:p-8">
         <BrandMark />
-        <h1 className="mt-6 font-display text-2xl font-semibold">Agent sign in</h1>
-        <p className="mt-1 text-sm text-muted">Open your dashboard and public listings page.</p>
+        <h1 className="mt-6 font-display text-2xl font-semibold">Sign in</h1>
+        <p className="mt-1 text-sm text-muted">
+          Access your agent dashboard or admin control panel.
+        </p>
 
         {authEnabled ? (
           <>
