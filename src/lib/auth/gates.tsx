@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
+import { useAgentStore } from "@/lib/agent-store";
 import { GROK_PROVIDERS, authEnabled, signIn, signOut } from "./client";
 import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
@@ -87,8 +88,15 @@ export function SignInButtons() {
  * gate-materialized — behind the gate the next request signs the viewer
  * straight back in, so a sign-out control there is a broken loop.
  */
-export function UserButton() {
+export function UserButton({
+  displayName,
+  avatarUrl,
+}: {
+  displayName?: string | null;
+  avatarUrl?: string | null;
+} = {}) {
   const user = useCurrentUser();
+  const storeAgent = useAgentStore((s) => s.agent);
   // Sign-out can take a moment (and can fail when deployed), so the control
   // shows it is working and cannot be fired twice.
   const [signingOut, setSigningOut] = useState(false);
@@ -97,22 +105,23 @@ export function UserButton() {
     hasGateSessionMarker,
     noGateSessionOnServer,
   );
-  if (!user) return null;
-  const label = user.displayName ?? user.primaryEmail ?? "Account";
+  if (!user && !storeAgent && !displayName) return null;
+  const label = displayName || storeAgent?.displayName || user?.displayName || user?.primaryEmail || "Account";
+  const avatar = avatarUrl !== undefined ? avatarUrl : (storeAgent?.avatarUrl || user?.profileImageUrl);
   return (
     <div className="flex items-center gap-2">
-      {user.profileImageUrl ? (
+      {avatar ? (
         <img
-          src={user.profileImageUrl}
-          alt=""
-          className="h-8 w-8 rounded-full object-cover"
+          src={avatar}
+          alt={label}
+          className="size-8 rounded-full object-cover ring-1 ring-border shrink-0"
         />
       ) : (
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/20">
-          {label.charAt(0).toUpperCase()}
+        <span className="grid size-8 place-items-center rounded-full bg-primary-soft text-sm font-semibold text-primary ring-1 ring-border shrink-0">
+          {label ? label.charAt(0).toUpperCase() : "A"}
         </span>
       )}
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-sm font-medium truncate max-w-[140px] sm:max-w-none">{label}</span>
       {authEnabled && !gateSession && (
         <button
           type="button"

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, LayoutDashboard, Menu, Plus, User, X } from "lucide-react";
+import { Home, LayoutDashboard, Menu, Plus, ShieldCheck, User, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ const NAV = [
   { to: "/dashboard/listings", label: "Listings", icon: Home },
   { to: "/dashboard/listings/new", label: "Add listing", icon: Plus },
   { to: "/dashboard/profile", label: "Profile", icon: User },
+  { to: "/admin", label: "Admin Portal", icon: ShieldCheck, badge: "Ops" },
 ] as const;
 
 /** Avatar circle: shows photo if available, else initials. */
@@ -133,6 +134,12 @@ export function AgentShell({ children }: { children: ReactNode }) {
                 </Link>
               </Button>
             ) : null}
+            <Button asChild variant="outline" size="sm" className="hidden lg:inline-flex border-primary/30 text-primary hover:bg-primary-soft">
+              <Link to="/admin">
+                <ShieldCheck className="mr-1.5 size-3.5" />
+                Admin
+              </Link>
+            </Button>
             {/* Agent avatar shown in the top-right on mobile */}
             {agent ? (
               <Link to="/dashboard/profile" className="md:hidden">
@@ -143,7 +150,7 @@ export function AgentShell({ children }: { children: ReactNode }) {
                 />
               </Link>
             ) : null}
-            <UserButton />
+            <UserButton displayName={agent?.displayName} avatarUrl={agent?.avatarUrl} />
           </div>
         </header>
         <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>

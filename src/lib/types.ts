@@ -26,6 +26,11 @@ export type Agent = {
   avatarUrl?: string | null;
   idDocumentUrl?: string | null;
   idVerificationStatus?: IdVerificationStatus;
+  idRejectionReason?: string | null;
+  idReviewedAt?: string | null;
+  isSuspended?: boolean;
+  adminRole?: string;
+  createdAt?: string;
 };
 
 export type Listing = Proofs & {
@@ -43,6 +48,13 @@ export type Listing = Proofs & {
   onsiteCapturedAt: string | null;
   createdAt: string;
   trust: TrustLevel;
+  isFeatured?: boolean;
+  moderationStatus?: "approved" | "pending" | "flagged";
+  agentName?: string;
+  agentSlug?: string;
+  agentPhone?: string;
+  agentAvatarUrl?: string | null;
+  agentVerified?: boolean;
 };
 
 export type Inquiry = {
@@ -58,6 +70,49 @@ export type Inquiry = {
   followUpDue: string | null;
   createdAt: string;
   overdue: boolean;
+  agentName?: string;
+  agentSlug?: string;
+};
+
+export type ReviewStatus = "published" | "pending" | "flagged";
+
+export type ClientReview = {
+  id: number;
+  agentUserId: string;
+  agentName?: string;
+  agentSlug?: string;
+  agentAvatarUrl?: string | null;
+  listingId?: number | null;
+  listingTitle?: string | null;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  clientRole: string; // Tenant, Buyer, Landlord, Visitor
+  rating: number; // 1-5
+  title: string;
+  comment: string;
+  status: ReviewStatus;
+  isVerifiedClient: boolean;
+  adminNotes?: string;
+  createdAt: string;
+};
+
+export type AdminAgentItem = Agent & {
+  listingsCount: number;
+  leadsCount: number;
+  reviewsCount: number;
+  avgRating: number;
+  createdAt: string;
+};
+
+export type AdminOverviewStats = {
+  totalAgents: number;
+  verifiedAgents: number;
+  pendingIdReviews: number;
+  totalListings: number;
+  totalInquiries: number;
+  totalReviews: number;
+  avgRating: number;
 };
 
 export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
@@ -73,3 +128,4 @@ export const LEAD_STATUSES: LeadStatus[] = [
   "viewing_booked",
   "closed",
 ];
+

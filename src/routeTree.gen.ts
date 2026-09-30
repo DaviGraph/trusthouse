@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SlugRouteImport } from './routes/$slug'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SlugIndexRouteImport } from './routes/$slug.index'
 import { Route as SlugListingsRouteImport } from './routes/$slug.listings'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardListingsRouteImport } from './routes/dashboard.listings'
 import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
@@ -32,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const SlugRoute = SlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -58,6 +65,11 @@ const SlugListingsRoute = SlugListingsRouteImport.update({
   id: '/listings',
   path: '/listings',
   getParentRoute: () => SlugRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
@@ -99,10 +111,12 @@ const DashboardListingsNewRoute = DashboardListingsNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$slug': typeof SlugRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/$slug/listings': typeof SlugListingsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/dashboard/listings': typeof DashboardListingsRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/$slug/': typeof SlugIndexRoute
@@ -114,9 +128,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/$slug/listings': typeof SlugListingsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/dashboard/listings': typeof DashboardListingsRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/$slug': typeof SlugIndexRoute
@@ -130,10 +146,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$slug': typeof SlugRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/$slug/listings': typeof SlugListingsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/dashboard/listings': typeof DashboardListingsRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/$slug/': typeof SlugIndexRoute
@@ -148,10 +166,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$slug'
+    | '/admin'
     | '/dashboard'
     | '/login'
     | '/signup'
     | '/$slug/listings'
+    | '/admin/login'
     | '/dashboard/listings'
     | '/dashboard/profile'
     | '/$slug/'
@@ -163,9 +183,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/login'
     | '/signup'
     | '/$slug/listings'
+    | '/admin/login'
     | '/dashboard/listings'
     | '/dashboard/profile'
     | '/$slug'
@@ -178,10 +200,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$slug'
+    | '/admin'
     | '/dashboard'
     | '/login'
     | '/signup'
     | '/$slug/listings'
+    | '/admin/login'
     | '/dashboard/listings'
     | '/dashboard/profile'
     | '/$slug/'
@@ -195,6 +219,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SlugRoute: typeof SlugRouteWithChildren
+  AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
@@ -215,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/$slug'
       fullPath: '/$slug'
       preLoaderRoute: typeof SlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -251,6 +283,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$slug/listings'
       preLoaderRoute: typeof SlugListingsRouteImport
       parentRoute: typeof SlugRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/dashboard/': {
       id: '/dashboard/'
@@ -318,6 +357,16 @@ const SlugRouteChildren: SlugRouteChildren = {
 
 const SlugRouteWithChildren = SlugRoute._addFileChildren(SlugRouteChildren)
 
+interface AdminRouteChildren {
+  AdminLoginRoute: typeof AdminLoginRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminLoginRoute: AdminLoginRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface DashboardRouteChildren {
   DashboardListingsRoute: typeof DashboardListingsRoute
   DashboardProfileRoute: typeof DashboardProfileRoute
@@ -341,6 +390,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SlugRoute: SlugRouteWithChildren,
+  AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,

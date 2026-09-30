@@ -14,6 +14,11 @@ type AgentRow = {
   avatar_url?: string | null;
   id_document_url?: string | null;
   id_verification_status?: string | null;
+  id_rejection_reason?: string | null;
+  id_reviewed_at?: string | null;
+  is_suspended?: boolean | null;
+  admin_role?: string | null;
+  created_at?: string | null;
 };
 
 function mapAgent(row: AgentRow): Agent {
@@ -26,6 +31,11 @@ function mapAgent(row: AgentRow): Agent {
     avatarUrl: row.avatar_url ?? null,
     idDocumentUrl: row.id_document_url ?? null,
     idVerificationStatus: (row.id_verification_status as IdVerificationStatus) ?? "not_submitted",
+    idRejectionReason: row.id_rejection_reason ?? null,
+    idReviewedAt: row.id_reviewed_at ? new Date(row.id_reviewed_at).toISOString() : null,
+    isSuspended: Boolean(row.is_suspended),
+    adminRole: row.admin_role ?? "agent",
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
   };
 }
 
@@ -135,17 +145,17 @@ export const updateAgentProfile = createServerFn({ method: "POST" })
       from agents where user_id = ${context.userId} limit 1
     `;
 
+    let updatedRow: AgentRow;
+
     if (!existing[0]) {
       const slug = await uniqueSlug(sql, slugifyName(name), context.userId);
       const rows = await sql<AgentRow>`
         insert into agents (user_id, slug, display_name, phone, bio, avatar_url)
         values (${context.userId}, ${slug}, ${name}, ${data.phone ?? ""}, ${data.bio ?? ""}, ${data.avatarUrl ?? null})
-        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status, id_rejection_reason, id_reviewed_at, is_suspended, admin_role, created_at
       `;
-      return mapAgent(rows[0]);
-    }
-
-    if (data.avatarUrl !== undefined) {
+      updatedRow = rows[0];
+    } else if (data.avatarUrl !== undefined) {
       const rows = await sql<AgentRow>`
         update agents
         set display_name = ${name},
@@ -153,20 +163,44 @@ export const updateAgentProfile = createServerFn({ method: "POST" })
             bio = ${data.bio ?? ""},
             avatar_url = ${data.avatarUrl}
         where user_id = ${context.userId}
-        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status, id_rejection_reason, id_reviewed_at, is_suspended, admin_role, created_at
       `;
-      return mapAgent(rows[0]);
+      updatedRow = rows[0];
+    } else {
+      const rows = await sql<AgentRow>`
+        update agents
+        set display_name = ${name},
+            phone = ${data.phone ?? ""},
+            bio = ${data.bio ?? ""}
+        where user_id = ${context.userId}
+        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status, id_rejection_reason, id_reviewed_at, is_suspended, admin_role, created_at
+      `;
+      updatedRow = rows[0];
     }
 
-    const rows = await sql<AgentRow>`
-      update agents
-      set display_name = ${name},
-          phone = ${data.phone ?? ""},
-          bio = ${data.bio ?? ""}
-      where user_id = ${context.userId}
-      returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
-    `;
-    return mapAgent(rows[0]);
+    // Also synchronize Better-Auth "user" table (name and image) so gates and session are up to date
+    try {
+      if (data.avatarUrl !== undefined) {
+        await sql`
+          update "user"
+          set "name" = ${name},
+              "image" = ${data.avatarUrl},
+              "updatedAt" = now()
+          where "id" = ${context.userId}
+        `;
+      } else {
+        await sql`
+          update "user"
+          set "name" = ${name},
+              "updatedAt" = now()
+          where "id" = ${context.userId}
+        `;
+      }
+    } catch {
+      // Ignore if user table doesn't exist or isn't writable
+    }
+
+    return mapAgent(updatedRow);
   });
 
 const uploadIdDocSchema = z
