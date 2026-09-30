@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileCheck,
   Loader2,
+  Lock,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -205,6 +206,11 @@ function AgentProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (agent?.idVerificationStatus === "verified") {
+      toast.error("Your account is already verified and locked.");
+      return;
+    }
+
     if (file.size > 10 * 1024 * 1024) {
       setIdError("ID document scan must be under 10MB.");
       return;
@@ -240,6 +246,7 @@ function AgentProfilePage() {
   }
 
   const idStatus: IdVerificationStatus = agent?.idVerificationStatus ?? "not_submitted";
+  const isVerified = idStatus === "verified";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -427,13 +434,13 @@ function AgentProfilePage() {
 
         {/* Status Callout Box */}
         <div className="mt-6">
-          {idStatus === "verified" ? (
+          {isVerified ? (
             <div className="flex items-start gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-900">
               <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-700" />
               <div className="space-y-1">
                 <p className="text-sm font-semibold">Your government ID is verified</p>
                 <p className="text-xs text-emerald-800">
-                  Your identity has been confirmed by TrustHouse administrators. Your listings now feature the verified agent badge.
+                  Your identity has been confirmed by TrustHouse administrators. Verification is locked and active across your profile and listings.
                 </p>
               </div>
             </div>
@@ -480,55 +487,68 @@ function AgentProfilePage() {
           </div>
         ) : null}
 
-        {/* Upload Field */}
+        {/* Upload Field / Disabled if Verified */}
         <div className="mt-5 space-y-3">
           <Label htmlFor="id-doc-upload" className="text-sm font-medium">
-            {agent?.idDocumentUrl ? "Replace ID document scan" : "Upload government ID scan"}
+            {isVerified
+              ? "Government ID verification locked"
+              : agent?.idDocumentUrl
+                ? "Replace ID document scan"
+                : "Upload government ID scan"}
           </Label>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <label
-              htmlFor="id-doc-upload"
-              className={cn(
-                "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface-2/30 px-4 text-sm font-medium text-fg transition hover:bg-surface-2 cursor-pointer",
-                idUploading && "pointer-events-none opacity-50",
-              )}
-            >
-              {idUploading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin text-primary" />
-                  Uploading & submitting document…
-                </>
-              ) : (
-                <>
-                  <Upload className="size-4 text-muted" />
-                  <span>Choose ID file (JPG, PNG, PDF)</span>
-                </>
-              )}
-            </label>
-            <input
-              id="id-doc-upload"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="sr-only"
-              onChange={handleIdDocumentChange}
-              disabled={idUploading}
-            />
+          {isVerified ? (
+            <div className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-800">
+              <Lock className="size-4 shrink-0 text-emerald-600" />
+              <span>Identity verification complete. You cannot re-submit documents after verification.</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <label
+                htmlFor="id-doc-upload"
+                className={cn(
+                  "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface-2/30 px-4 text-sm font-medium text-fg transition hover:bg-surface-2 cursor-pointer",
+                  idUploading && "pointer-events-none opacity-50",
+                )}
+              >
+                {idUploading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-primary" />
+                    Uploading & submitting document…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="size-4 text-muted" />
+                    <span>Choose ID file (JPG, PNG, PDF)</span>
+                  </>
+                )}
+              </label>
+              <input
+                id="id-doc-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="sr-only"
+                onChange={handleIdDocumentChange}
+                disabled={idUploading}
+              />
 
-            <span className="text-xs text-muted">
-              PDF, JPG, PNG or WebP up to 10MB.
-            </span>
-          </div>
+              <span className="text-xs text-muted">
+                PDF, JPG, PNG or WebP up to 10MB.
+              </span>
+            </div>
+          )}
 
           {idError ? <p className="text-xs text-danger">{idError}</p> : null}
 
-          <div className="rounded-lg bg-surface-2/40 p-3 text-xs text-muted">
-            <p className="font-medium text-fg">Verification Notice:</p>
-            <p className="mt-0.5">
-              Submitting your ID automatically places your profile in <strong>Pending review</strong>.
-              Approval is finalized after admin review; your public status will not display "Verified" until confirmed.
-            </p>
-          </div>
+          {!isVerified ? (
+            <div className="rounded-lg bg-surface-2/40 p-3 text-xs text-muted">
+              <p className="font-medium text-fg">Verification Notice:</p>
+              <p className="mt-0.5">
+                Submitting your ID automatically places your profile in <strong>Pending review</strong>.
+                Approval is finalized after admin review; your public status will not display "Verified" until confirmed.
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

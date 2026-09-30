@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Building2, Search } from "lucide-react";
+import { ArrowRight, Building2, CheckCircle2, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Route as SlugRoute } from "./$slug";
 
@@ -9,10 +10,19 @@ export const Route = createFileRoute("/$slug/")({
 
 function AgentEntry() {
   const { agent } = SlugRoute.useLoaderData();
+  const isVerified = agent.idVerificationStatus === "verified";
 
   return (
     <main className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-lg flex-col justify-center px-4 py-12">
-      <p className="text-sm font-medium text-primary">Welcome</p>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-medium text-primary">Welcome</p>
+        {isVerified ? (
+          <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-800 text-xs font-semibold">
+            <CheckCircle2 className="mr-1 size-3.5 text-emerald-700" />
+            Verified Agent
+          </Badge>
+        ) : null}
+      </div>
       <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">
         You are on {agent.displayName}'s TrustHouse.
       </h1>

@@ -44,7 +44,6 @@ export function ProofToggles({
 }) {
   return (
     <fieldset className="grid gap-2">
-      <legend className="mb-1 text-sm font-medium">Proofs you confirm yourself</legend>
       {PROOF_ITEMS.filter((item) => item.key !== "proofOnsiteVisit").map((item) => (
         <label
           key={item.key}
