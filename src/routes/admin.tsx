@@ -174,7 +174,7 @@ function AdminDashboardPage() {
   useEffect(() => {
     const token = getAdminToken();
     if (!token) {
-      void navigate({ to: "/admin/login" });
+      void navigate({ to: "/login" });
     } else {
       setAuthed(true);
     }
@@ -484,7 +484,7 @@ function AdminDashboardPage() {
 
   function handleLogout() {
     clearAdminToken();
-    void navigate({ to: "/admin/login" });
+    void navigate({ to: "/login" });
   }
 
   // Not yet checked auth
