@@ -1,5 +1,7 @@
 import { createFileRoute, Link, Outlet, notFound } from "@tanstack/react-router";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
+import { Badge } from "@/components/ui/badge";
 import { getPublicAgent } from "@/lib/server/agents";
 
 export const Route = createFileRoute("/$slug")({
@@ -14,14 +16,26 @@ export const Route = createFileRoute("/$slug")({
 
 function PublicAgentLayout() {
   const { agent } = Route.useLoaderData();
+  const isVerified = agent.idVerificationStatus === "verified";
+
   return (
     <div className="min-h-dvh bg-bg">
       <header className="sticky top-0 z-30 border-b border-border/80 bg-bg/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
           <BrandMark />
-          <div className="min-w-0 text-right">
-            <p className="truncate text-sm font-medium">{agent.displayName}</p>
-            <p className="truncate text-xs text-muted">Independent agent · Lagos</p>
+          <div className="min-w-0 text-right flex items-center gap-2">
+            <div>
+              <div className="flex items-center justify-end gap-1.5">
+                <p className="truncate text-sm font-medium">{agent.displayName}</p>
+                {isVerified ? (
+                  <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-800 text-[10px] font-semibold py-0 px-1.5">
+                    <CheckCircle2 className="mr-1 size-3 text-emerald-700" />
+                    Verified Agent
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="truncate text-xs text-muted">Independent agent · Lagos</p>
+            </div>
           </div>
         </div>
       </header>

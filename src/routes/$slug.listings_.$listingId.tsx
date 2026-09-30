@@ -74,15 +74,6 @@ function ListingDetail() {
               </span>
             </div>
             <p className="mt-6 text-[0.95rem] leading-7 text-fg/90">{listing.description}</p>
-            {listing.verificationVideoUrl ? (
-              <div className="mt-6">
-                <h2 className="font-display text-lg font-semibold">Verification video</h2>
-                <p className="mt-1 mb-3 text-sm text-muted">
-                  {agent.displayName.split(" ")[0]}'s walkthrough of this property.
-                </p>
-                <video src={listing.verificationVideoUrl} controls className="w-full rounded-md" />
-              </div>
-            ) : null}
             <div className="mt-6 lg:hidden">
               <InquireDialog listingId={listing.id} listingTitle={listing.title} triggerClassName="w-full" />
             </div>
