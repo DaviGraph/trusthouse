@@ -18,6 +18,7 @@ import { Route as SlugIndexRouteImport } from './routes/$slug.index'
 import { Route as SlugListingsRouteImport } from './routes/$slug.listings'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardListingsRouteImport } from './routes/dashboard.listings'
+import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
 import { Route as SlugListingsListingIdRouteImport } from './routes/$slug.listings_.$listingId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as DashboardListingsListingIdRouteImport } from './routes/dashboard.listings_.$listingId'
@@ -68,6 +69,11 @@ const DashboardListingsRoute = DashboardListingsRouteImport.update({
   path: '/listings',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardProfileRoute = DashboardProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const SlugListingsListingIdRoute = SlugListingsListingIdRouteImport.update({
   id: '/listings_/$listingId',
   path: '/listings/$listingId',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/$slug/listings': typeof SlugListingsRoute
   '/dashboard/listings': typeof DashboardListingsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
   '/$slug/': typeof SlugIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/$slug/listings/$listingId': typeof SlugListingsListingIdRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/$slug/listings': typeof SlugListingsRoute
   '/dashboard/listings': typeof DashboardListingsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
   '/$slug': typeof SlugIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/$slug/listings/$listingId': typeof SlugListingsListingIdRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/$slug/listings': typeof SlugListingsRoute
   '/dashboard/listings': typeof DashboardListingsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
   '/$slug/': typeof SlugIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/$slug/listings_/$listingId': typeof SlugListingsListingIdRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/$slug/listings'
     | '/dashboard/listings'
+    | '/dashboard/profile'
     | '/$slug/'
     | '/dashboard/'
     | '/$slug/listings/$listingId'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/$slug/listings'
     | '/dashboard/listings'
+    | '/dashboard/profile'
     | '/$slug'
     | '/dashboard'
     | '/$slug/listings/$listingId'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/$slug/listings'
     | '/dashboard/listings'
+    | '/dashboard/profile'
     | '/$slug/'
     | '/dashboard/'
     | '/$slug/listings_/$listingId'
@@ -254,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardListingsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/profile': {
+      id: '/dashboard/profile'
+      path: '/profile'
+      fullPath: '/dashboard/profile'
+      preLoaderRoute: typeof DashboardProfileRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/$slug/listings_/$listingId': {
       id: '/$slug/listings_/$listingId'
       path: '/listings/$listingId'
@@ -301,6 +320,7 @@ const SlugRouteWithChildren = SlugRoute._addFileChildren(SlugRouteChildren)
 
 interface DashboardRouteChildren {
   DashboardListingsRoute: typeof DashboardListingsRoute
+  DashboardProfileRoute: typeof DashboardProfileRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardListingsListingIdRoute: typeof DashboardListingsListingIdRoute
   DashboardListingsNewRoute: typeof DashboardListingsNewRoute
@@ -308,6 +328,7 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardListingsRoute: DashboardListingsRoute,
+  DashboardProfileRoute: DashboardProfileRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardListingsListingIdRoute: DashboardListingsListingIdRoute,
   DashboardListingsNewRoute: DashboardListingsNewRoute,

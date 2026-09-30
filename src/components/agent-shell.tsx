@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, LayoutDashboard, Menu, Plus, X } from "lucide-react";
+import { Home, LayoutDashboard, Menu, Plus, User, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ const NAV = [
   { to: "/dashboard", label: "Leads", icon: LayoutDashboard },
   { to: "/dashboard/listings", label: "Listings", icon: Home },
   { to: "/dashboard/listings/new", label: "Add listing", icon: Plus },
+  { to: "/dashboard/profile", label: "Profile", icon: User },
 ] as const;
 
 export function AgentShell({
@@ -31,7 +32,9 @@ export function AgentShell({
             ? pathname === "/dashboard"
             : item.to === "/dashboard/listings"
               ? pathname === "/dashboard/listings"
-              : pathname === item.to;
+              : item.to === "/dashboard/profile"
+                ? pathname === "/dashboard/profile"
+                : pathname === item.to;
         const Icon = item.icon;
         return (
           <Link
@@ -57,10 +60,13 @@ export function AgentShell({
         <BrandMark />
         <div className="mt-8 flex-1">{nav}</div>
         {agent ? (
-          <div className="rounded-lg bg-bg p-3">
+          <Link
+            to="/dashboard/profile"
+            className="block rounded-lg bg-bg p-3 transition-colors hover:bg-surface-2"
+          >
             <p className="text-sm font-medium">{agent.displayName}</p>
             <p className="mt-0.5 truncate text-xs text-muted">/{agent.slug}</p>
-          </div>
+          </Link>
         ) : null}
       </aside>
 

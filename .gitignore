@@ -4,3 +4,5 @@ node_modules
 .env.local
 .tanstack
 dist
+env_variables.txt
+.gitignore

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BadgeCheck, FileSearch, PhoneCall, ScanEye } from "lucide-react";
+import { ArrowRight, BadgeCheck, PhoneCall, ScanEye } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { ListingCard } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,6 @@ const STEPS = [
     icon: BadgeCheck,
     title: "ID checked",
     body: "The agent reviewed a valid government ID of the person claiming to own the home.",
-  },
-  {
-    icon: FileSearch,
-    title: "Ownership document seen",
-    body: "Deed of assignment, C of O, or consent was sighted — not just promised.",
   },
   {
     icon: ScanEye,
@@ -94,13 +89,13 @@ function Home() {
         <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
           <p className="text-sm font-medium text-primary">How trust is earned</p>
           <h2 className="mt-2 max-w-xl font-display text-3xl font-semibold">
-            Four proofs. One honest badge.
+            Three proofs. One honest badge.
           </h2>
           <p className="mt-3 max-w-2xl text-muted">
-            Green means all four checks are done. Yellow means some. Red means none yet —
+            Green means all three checks are done. Yellow means some. Red means none yet —
             still listed, never dressed up as verified.
           </p>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {STEPS.map((step) => (
               <article
                 key={step.title}
@@ -143,7 +138,7 @@ function Home() {
             <div>
               <h2 className="font-display text-2xl font-semibold">Agents: publish a page buyers can trust.</h2>
               <p className="mt-2 max-w-xl text-sm text-muted">
-                Sign up, add listings with the four proofs, and share your unique link.
+                Sign up, add listings with the three proofs, and share your unique link.
                 Inquiries land in your dashboard with WhatsApp follow-up.
               </p>
             </div>

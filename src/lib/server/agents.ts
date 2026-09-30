@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { RESERVED_SLUGS, slugifyName } from "@/lib/format";
-import type { Agent } from "@/lib/types";
+import type { Agent, IdVerificationStatus } from "@/lib/types";
 
 type AgentRow = {
   user_id: string;
@@ -11,6 +11,9 @@ type AgentRow = {
   display_name: string;
   phone: string;
   bio: string;
+  avatar_url?: string | null;
+  id_document_url?: string | null;
+  id_verification_status?: string | null;
 };
 
 function mapAgent(row: AgentRow): Agent {
@@ -18,8 +21,11 @@ function mapAgent(row: AgentRow): Agent {
     userId: row.user_id,
     slug: row.slug,
     displayName: row.display_name,
-    phone: row.phone,
-    bio: row.bio,
+    phone: row.phone ?? "",
+    bio: row.bio ?? "",
+    avatarUrl: row.avatar_url ?? null,
+    idDocumentUrl: row.id_document_url ?? null,
+    idVerificationStatus: (row.id_verification_status as IdVerificationStatus) ?? "not_submitted",
   };
 }
 
@@ -41,7 +47,8 @@ export const getPublicAgent = createServerFn({ method: "GET" })
     if (!slug || RESERVED_SLUGS.has(slug)) return null;
     const sql = await getSql();
     const rows = await sql<AgentRow>`
-      select user_id, slug, display_name, phone, bio from agents where slug = ${slug} limit 1
+      select user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+      from agents where slug = ${slug} limit 1
     `;
     return rows[0] ? mapAgent(rows[0]) : null;
   });
@@ -51,10 +58,139 @@ export const getMyAgent = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<Agent | null> => {
     const sql = await getSql();
     const rows = await sql<AgentRow>`
-      select user_id, slug, display_name, phone, bio
+      select user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
       from agents where user_id = ${context.userId} limit 1
     `;
     return rows[0] ? mapAgent(rows[0]) : null;
+  });
+
+const getProfileValidator = (input: unknown) => {
+  if (typeof input === "string") return { agentId: input.trim() };
+  if (input && typeof input === "object" && "agentId" in input) {
+    return { agentId: String((input as { agentId?: unknown }).agentId ?? "").trim() || undefined };
+  }
+  return {};
+};
+
+/**
+ * Fetch current profile fields for an agent.
+ * Protected: Only accessible when logged in as the agent themselves.
+ */
+export const getAgentProfile = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(getProfileValidator)
+  .handler(async ({ context, data }): Promise<Agent | null> => {
+    const targetId = data?.agentId || context.userId;
+    if (targetId !== context.userId) {
+      throw new Error("Unauthorized: You can only access your own agent profile.");
+    }
+    const sql = await getSql();
+    const rows = await sql<AgentRow>`
+      select user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+      from agents where user_id = ${context.userId} limit 1
+    `;
+    return rows[0] ? mapAgent(rows[0]) : null;
+  });
+
+const updateAgentProfileSchema = z
+  .object({
+    agentId: z.string().trim().min(1).optional(),
+    fullName: z
+      .string()
+      .trim()
+      .min(2, "Full name must be at least 2 characters")
+      .max(80, "Full name must be at most 80 characters")
+      .optional(),
+    displayName: z
+      .string()
+      .trim()
+      .min(2, "Full name must be at least 2 characters")
+      .max(80, "Full name must be at most 80 characters")
+      .optional(),
+    phone: z.string().trim().max(30, "Phone number is too long").optional().default(""),
+    bio: z.string().trim().max(1000, "Bio must be at most 1000 characters").optional().default(""),
+    avatarUrl: z.string().trim().nullable().optional(),
+  })
+  .refine((data) => data.fullName || data.displayName, {
+    message: "Full name is required",
+    path: ["displayName"],
+  });
+
+/**
+ * Update editable profile fields (full name, phone, bio, optional avatarUrl).
+ * Protected: Only accessible when logged in as the agent themselves.
+ */
+export const updateAgentProfile = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => updateAgentProfileSchema.parse(input))
+  .handler(async ({ context, data }): Promise<Agent> => {
+    if (data.agentId && data.agentId !== context.userId) {
+      throw new Error("Unauthorized: You can only update your own agent profile.");
+    }
+    const name = (data.fullName || data.displayName)!.trim();
+    const sql = await getSql();
+
+    if (data.avatarUrl !== undefined) {
+      const rows = await sql<AgentRow>`
+        update agents
+        set display_name = ${name},
+            phone = ${data.phone ?? ""},
+            bio = ${data.bio ?? ""},
+            avatar_url = ${data.avatarUrl}
+        where user_id = ${context.userId}
+        returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+      `;
+      if (!rows[0]) throw new Error("Agent profile not found.");
+      return mapAgent(rows[0]);
+    }
+
+    const rows = await sql<AgentRow>`
+      update agents
+      set display_name = ${name},
+          phone = ${data.phone ?? ""},
+          bio = ${data.bio ?? ""}
+      where user_id = ${context.userId}
+      returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+    `;
+    if (!rows[0]) throw new Error("Agent profile not found.");
+    return mapAgent(rows[0]);
+  });
+
+const uploadIdDocSchema = z
+  .object({
+    agentId: z.string().trim().min(1).optional(),
+    documentUrl: z.string().trim().optional(),
+    fileUrl: z.string().trim().optional(),
+    file: z.string().trim().optional(),
+  })
+  .refine((d) => d.documentUrl || d.fileUrl || d.file, {
+    message: "Document file or URL is required",
+    path: ["documentUrl"],
+  });
+
+/**
+ * Upload/record an agent's government ID document scan and set status to 'pending_review'.
+ * Protected: Only accessible when logged in as the agent themselves.
+ * NOTE: Does NOT auto-verify — marks as pending review for admin verification.
+ */
+export const uploadAgentIdDocument = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => uploadIdDocSchema.parse(input))
+  .handler(async ({ context, data }): Promise<Agent> => {
+    if (data.agentId && data.agentId !== context.userId) {
+      throw new Error("Unauthorized: You can only submit verification for your own account.");
+    }
+    const docUrl = (data.documentUrl || data.fileUrl || data.file)!;
+    const sql = await getSql();
+    const rows = await sql<AgentRow>`
+      update agents
+      set id_document_url = ${docUrl},
+          id_verification_status = 'pending_review'
+      where user_id = ${context.userId}
+      returning user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
+    `;
+    if (!rows[0]) throw new Error("Agent profile not found.");
+    return mapAgent(rows[0]);
   });
 
 const upsertSchema = z.object({
@@ -69,7 +205,7 @@ export const ensureAgentProfile = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<Agent> => {
     const sql = await getSql();
     const existing = await sql<AgentRow>`
-      select user_id, slug, display_name, phone, bio
+      select user_id, slug, display_name, phone, bio, avatar_url, id_document_url, id_verification_status
       from agents where user_id = ${context.userId} limit 1
     `;
     if (existing[0]) {
@@ -87,6 +223,9 @@ export const ensureAgentProfile = createServerFn({ method: "POST" })
         displayName: name,
         phone,
         bio,
+        avatarUrl: existing[0].avatar_url ?? null,
+        idDocumentUrl: existing[0].id_document_url ?? null,
+        idVerificationStatus: (existing[0].id_verification_status as IdVerificationStatus) ?? "not_submitted",
       };
     }
     const slug = await uniqueSlug(sql, slugifyName(data.displayName), context.userId);
@@ -100,5 +239,8 @@ export const ensureAgentProfile = createServerFn({ method: "POST" })
       displayName: data.displayName,
       phone: data.phone ?? "",
       bio: data.bio ?? "",
+      avatarUrl: null,
+      idDocumentUrl: null,
+      idVerificationStatus: "not_submitted",
     };
   });

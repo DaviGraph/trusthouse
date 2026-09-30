@@ -9,12 +9,23 @@ export type Proofs = {
   proofOwnerPhone: boolean;
 };
 
+export type IdVerificationStatus = "not_submitted" | "pending_review" | "verified";
+
+export const ID_VERIFICATION_STATUS_LABEL: Record<IdVerificationStatus, string> = {
+  not_submitted: "Not submitted",
+  pending_review: "Pending review",
+  verified: "Verified",
+};
+
 export type Agent = {
   userId: string;
   slug: string;
   displayName: string;
   phone: string;
   bio: string;
+  avatarUrl?: string | null;
+  idDocumentUrl?: string | null;
+  idVerificationStatus?: IdVerificationStatus;
 };
 
 export type Listing = Proofs & {
@@ -29,6 +40,7 @@ export type Listing = Proofs & {
   photoUrl: string;
   photoUrls: string[];
   verificationVideoUrl: string | null;
+  onsiteCapturedAt: string | null;
   createdAt: string;
   trust: TrustLevel;
 };

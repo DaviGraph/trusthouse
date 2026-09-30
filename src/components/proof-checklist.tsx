@@ -44,8 +44,8 @@ export function ProofToggles({
 }) {
   return (
     <fieldset className="grid gap-2">
-      <legend className="mb-1 text-sm font-medium">Proofs of trust</legend>
-      {PROOF_ITEMS.map((item) => (
+      <legend className="mb-1 text-sm font-medium">Proofs you confirm yourself</legend>
+      {PROOF_ITEMS.filter((item) => item.key !== "proofOnsiteVisit").map((item) => (
         <label
           key={item.key}
           className="flex cursor-pointer items-start gap-3 rounded-lg bg-surface p-3 shadow-[0_0_0_1px_rgba(28,25,23,0.06)]"

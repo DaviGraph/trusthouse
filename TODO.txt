@@ -1,0 +1,6 @@
+TODO
+
+1. [x] Create profile page (will be able to edit profile, verification of ID)
+2. [ ] add google map api for location 
+3. [x] migrate database (0004_agent_profile_and_id_verification.sql created)
+4. [ ]

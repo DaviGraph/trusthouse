@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ProofToggles } from "@/components/proof-checklist";
+import { CameraCapture, type CameraResult } from "@/components/camera-capture";
 import { LAGOS_AREAS } from "@/lib/constants";
+import { checkOnsite, type OnsiteCapture } from "@/lib/areas";
 import { uploadListingPhoto, uploadVerificationVideo } from "@/lib/upload-client";
 import type { Listing, Proofs } from "@/lib/types";
 
@@ -19,6 +21,7 @@ export type ListingDraft = {
   description: string;
   photoUrls: string[];
   verificationVideoUrl: string | null;
+  onsiteCapture: OnsiteCapture | null;
 } & Proofs;
 
 export function listingToDraft(listing?: Listing): ListingDraft {
@@ -31,6 +34,7 @@ export function listingToDraft(listing?: Listing): ListingDraft {
     description: listing?.description ?? "",
     photoUrls: listing?.photoUrls ?? [],
     verificationVideoUrl: listing?.verificationVideoUrl ?? null,
+    onsiteCapture: null,
     proofIdChecked: listing?.proofIdChecked ?? false,
     proofOwnershipSeen: listing?.proofOwnershipSeen ?? false,
     proofOnsiteVisit: listing?.proofOnsiteVisit ?? false,
@@ -48,9 +52,9 @@ export function toListingPayload(draft: ListingDraft) {
     description: draft.description,
     photoUrls: draft.photoUrls,
     verificationVideoUrl: draft.verificationVideoUrl,
+    onsiteCapture: draft.onsiteCapture,
     proofIdChecked: draft.proofIdChecked,
     proofOwnershipSeen: draft.proofOwnershipSeen,
-    proofOnsiteVisit: draft.proofOnsiteVisit,
     proofOwnerPhone: draft.proofOwnerPhone,
   };
 }
@@ -69,6 +73,7 @@ export function ListingForm({
   const [draft, setDraft] = useState<ListingDraft>(() => listingToDraft(initial));
   const [photoUploading, setPhotoUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   function handle(e: FormEvent) {
@@ -106,6 +111,30 @@ export function ListingForm({
     setDraft((d) => ({ ...d, photoUrls: d.photoUrls.filter((p) => p !== url) }));
   }
 
+  async function handleCameraCapture(result: CameraResult) {
+    setCameraOpen(false);
+    setUploadError(null);
+    setPhotoUploading(true);
+    try {
+      const url = await uploadListingPhoto(result.file);
+      setDraft((d) => ({
+        ...d,
+        photoUrls: d.photoUrls.length < MAX_PHOTOS ? [...d.photoUrls, url] : d.photoUrls,
+        onsiteCapture: {
+          photoUrl: url,
+          lat: result.lat,
+          lng: result.lng,
+          accuracyM: result.accuracyM,
+          capturedAt: result.capturedAt,
+        },
+      }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Photo upload failed.");
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
   async function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -128,8 +157,13 @@ export function ListingForm({
     proofOwnerPhone: draft.proofOwnerPhone,
   };
 
+  const onsiteResult = draft.onsiteCapture ? checkOnsite(draft.area, draft.onsiteCapture) : null;
+  const previouslyConfirmed = !draft.onsiteCapture && Boolean(initial?.onsiteCapturedAt) && Boolean(initial?.proofOnsiteVisit);
+
   return (
     <form className="grid gap-5" onSubmit={handle}>
+      {cameraOpen ? <CameraCapture onCapture={handleCameraCapture} onClose={() => setCameraOpen(false)} /> : null}
+
       <div className="grid gap-1.5">
         <Label htmlFor="title">Title</Label>
         <Input
@@ -201,6 +235,29 @@ export function ListingForm({
           onChange={(e) => setDraft({ ...draft, description: e.target.value })}
         />
       </div>
+
+      <fieldset className="grid gap-2 rounded-lg bg-surface p-3 shadow-[0_0_0_1px_rgba(28,25,23,0.06)]">
+        <legend className="px-1 text-sm font-medium">On-site visit (confirmed by the app)</legend>
+        <p className="text-xs text-muted">
+          Choose the area above first. Stand at the property and take a photo with your camera. The app reads your
+          phone's location at that moment and confirms it matches the area.
+        </p>
+        <div>
+          <Button type="button" variant="outline" onClick={() => setCameraOpen(true)} disabled={photoUploading}>
+            {draft.onsiteCapture || previouslyConfirmed ? "Retake on-site photo" : "Take on-site photo"}
+          </Button>
+        </div>
+        {onsiteResult ? (
+          <p className={onsiteResult.ok ? "text-sm text-primary" : "text-sm text-danger"}>
+            {onsiteResult.ok ? "✓ " : "✕ "}
+            {onsiteResult.message}
+          </p>
+        ) : previouslyConfirmed ? (
+          <p className="text-sm text-primary">✓ Location confirmed from your earlier photo.</p>
+        ) : (
+          <p className="text-xs text-muted">Not confirmed yet.</p>
+        )}
+      </fieldset>
 
       <fieldset className="grid gap-2">
         <legend className="mb-1 text-sm font-medium">

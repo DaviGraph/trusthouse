@@ -13,6 +13,7 @@ export type ListingRow = {
   photo_url: string;
   photo_urls: string[] | null;
   verification_video_url: string | null;
+  onsite_captured_at: string | Date | null;
   proof_id_checked: boolean;
   proof_ownership_seen: boolean;
   proof_onsite_visit: boolean;
@@ -61,6 +62,7 @@ export function mapListing(row: ListingRow): Listing {
     photoUrl: photoUrls[0] ?? row.photo_url,
     photoUrls,
     verificationVideoUrl: row.verification_video_url,
+    onsiteCapturedAt: iso(row.onsite_captured_at),
     createdAt: iso(row.created_at) ?? new Date().toISOString(),
     trust: trustLevel(proofs),
     ...proofs,
