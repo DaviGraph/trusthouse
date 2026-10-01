@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import type { Inquiry } from "@/lib/types";
+import { sendInquiryNotificationEmail } from "@/lib/server/email";
 import { mapInquiry, type InquiryRow } from "./mappers";
 
 const inquireSchema = z.object({
@@ -32,6 +33,31 @@ export const createInquiry = createServerFn({ method: "POST" })
         now() + interval '24 hours'
       )
     `;
+
+    // Fetch agent email and listing title for inquiry email notification
+    try {
+      const agentDetails = await sql<{ display_name: string; title: string; email?: string }>`
+        select a.display_name, l.title, u.email
+        from agents a
+        join listings l on l.id = ${data.listingId}
+        left join "user" u on u.id = a.user_id
+        where a.user_id = ${listing[0].user_id}
+        limit 1
+      `;
+      if (agentDetails[0] && agentDetails[0].email) {
+        void sendInquiryNotificationEmail(
+          agentDetails[0].email,
+          agentDetails[0].display_name,
+          data.buyerName,
+          data.buyerPhone,
+          agentDetails[0].title,
+          data.message,
+        );
+      }
+    } catch {
+      /* non-blocking email trigger */
+    }
+
     return { ok: true };
   });
 

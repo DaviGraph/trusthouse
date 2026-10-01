@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { authClient, authEnabled } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { ensureAgentProfile } from "@/lib/server/agents";
+import { sendWelcomeEmail } from "@/lib/server/email";
 
 export const Route = createFileRoute("/signup")({ component: Signup });
 
@@ -42,6 +43,12 @@ function Signup() {
         await ensureAgentProfile({ data: { displayName: name, phone, bio } });
       } catch {
         /* profile is created on first dashboard visit if this races */
+      }
+      // Send welcome email via Resend API
+      try {
+        void sendWelcomeEmail(email, name);
+      } catch {
+        /* non-blocking email trigger */
       }
       window.location.href = "/dashboard";
     } catch (err) {
