@@ -718,7 +718,10 @@ export const getAdminInquiries = createServerFn({ method: "GET" }).handler(
       status: r.status,
       followUpDue: r.follow_up_due ? new Date(r.follow_up_due).toISOString() : null,
       createdAt: new Date(r.created_at).toISOString(),
-      overdue: r.follow_up_due ? new Date(r.follow_up_due).getTime() < Date.now() : false,
+      overdue:
+        r.follow_up_due && r.status !== "closed"
+          ? new Date(r.follow_up_due).getTime() < Date.now()
+          : false,
     }));
   },
 );
