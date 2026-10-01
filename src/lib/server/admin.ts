@@ -2,8 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
 import {
+  sendAgentSuspensionEmail,
   sendClientReviewEmail,
   sendIdVerificationEmail,
+  sendListingFeaturedEmail,
   sendListingStatusEmail,
 } from "@/lib/server/email";
 import type {
@@ -306,7 +308,7 @@ export const getAdminIdReviews = createServerFn({ method: "GET" })
     }));
   });
 
-// 4. Update Agent ID Verification Status (Approve / Reject)
+// 4. Update Agent ID Verification Status (Approve / Reject with feedback)
 const updateAgentIdSchema = z.object({
   agentUserId: z.string().min(1),
   status: z.enum(["verified", "pending_review", "not_submitted"]),
@@ -325,7 +327,7 @@ export const updateAgentIdVerification = createServerFn({ method: "POST" })
       where user_id = ${data.agentUserId}
     `;
 
-    // Trigger ID verification email to agent
+    // Trigger ID verification email to agent with admin feedback
     try {
       const agentInfo = await sql<{ display_name: string; email?: string }>`
         select a.display_name, u.email
@@ -359,6 +361,27 @@ export const toggleAgentSuspension = createServerFn({ method: "POST" })
       set is_suspended = ${data.isSuspended}
       where user_id = ${data.agentUserId}
     `;
+
+    // Trigger suspension notification email
+    try {
+      const agentInfo = await sql<{ display_name: string; email?: string }>`
+        select a.display_name, u.email
+        from agents a
+        left join "user" u on u.id = a.user_id
+        where a.user_id = ${data.agentUserId}
+        limit 1
+      `;
+      if (agentInfo[0] && agentInfo[0].email) {
+        void sendAgentSuspensionEmail(
+          agentInfo[0].email,
+          agentInfo[0].display_name,
+          data.isSuspended,
+        );
+      }
+    } catch {
+      /* non-blocking email trigger */
+    }
+
     return { success: true, isSuspended: data.isSuspended };
   });
 
@@ -459,7 +482,7 @@ export const updateListingAdmin = createServerFn({ method: "POST" })
       where id = ${data.id}
     `;
 
-    // Trigger listing status update email to agent
+    // Trigger listing status and featured notification emails
     try {
       const listingInfo = await sql<{ title: string; display_name: string; email?: string }>`
         select l.title, a.display_name, u.email
@@ -470,13 +493,23 @@ export const updateListingAdmin = createServerFn({ method: "POST" })
         limit 1
       `;
       if (listingInfo[0] && listingInfo[0].email) {
-        void sendListingStatusEmail(
-          listingInfo[0].email,
-          listingInfo[0].display_name,
-          listingInfo[0].title,
-          data.moderationStatus || "approved",
-          data.isFeatured,
-        );
+        if (data.moderationStatus) {
+          void sendListingStatusEmail(
+            listingInfo[0].email,
+            listingInfo[0].display_name,
+            listingInfo[0].title,
+            data.moderationStatus,
+            data.isFeatured,
+          );
+        }
+        if (data.isFeatured) {
+          void sendListingFeaturedEmail(
+            listingInfo[0].email,
+            listingInfo[0].display_name,
+            listingInfo[0].title,
+            true,
+          );
+        }
       }
     } catch {
       /* non-blocking email trigger */

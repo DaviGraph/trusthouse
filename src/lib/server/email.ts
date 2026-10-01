@@ -122,12 +122,12 @@ export async function sendClientReviewEmail(
   });
 }
 
-/** 4. ID Verification Notification for Agent */
+/** 4. ID Verification Notification for Agent (With Admin Feedback) */
 export async function sendIdVerificationEmail(
   agentEmail: string,
   agentName: string,
   status: "verified" | "not_submitted" | "pending_review",
-  rejectionReason?: string,
+  feedback?: string,
 ) {
   const isApproved = status === "verified";
   const subject = isApproved
@@ -142,10 +142,11 @@ export async function sendIdVerificationEmail(
         <h3 style="color: #0f5c45;">Hi ${agentName},</h3>
         ${
           isApproved
-            ? `<p>Great news! Your government ID has been reviewed and <strong>APPROVED</strong> by TrustHouse administrators.</p>
-               <p>Your profile and published listings now display the <strong>Verified Agent</strong> badge!</p>`
+            ? `<p>Great news! Your government ID has been reviewed and <strong style="color: #0f5c45;">APPROVED</strong> by TrustHouse administrators.</p>
+               <p>Your profile and published listings now display the <strong>Verified Agent</strong> badge!</p>
+               ${feedback ? `<div style="background: #f0fdf4; border-left: 4px solid #0f5c45; padding: 12px; margin: 15px 0;"><strong>Admin Feedback:</strong> ${feedback}</div>` : ""}`
             : `<p>Your government ID submission status is updated to: <strong>${status.replace("_", " ").toUpperCase()}</strong>.</p>
-               ${rejectionReason ? `<p style="color: #d97706;"><strong>Reason:</strong> ${rejectionReason}</p>` : ""}
+               ${feedback ? `<div style="background: #fef3c7; border-left: 4px solid #d97706; padding: 12px; margin: 15px 0; color: #92400e;"><strong>Admin Feedback:</strong> ${feedback}</div>` : ""}
                <p>Please log into your dashboard profile to review or resubmit your document if required.</p>`
         }
       </div>
@@ -173,6 +174,82 @@ export async function sendListingStatusEmail(
           ${isFeatured !== undefined ? `<li><strong>Featured Status:</strong> ${isFeatured ? "Featured on homepage" : "Standard"}</li>` : ""}
         </ul>
         <p>Log in to your dashboard to view your active properties.</p>
+      </div>
+    `,
+  });
+}
+
+/** 6. Login Alert Notification */
+export async function sendLoginNotificationEmail(
+  userEmail: string,
+  userName: string,
+  role: "admin" | "agent",
+) {
+  const timeStr = new Date().toLocaleString("en-US", { timeZone: "Africa/Lagos" });
+  return sendEmail({
+    to: userEmail,
+    subject: `Security Alert: New Sign-In to TrustHouse (${role === "admin" ? "Admin Portal" : "Agent Dashboard"})`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h3 style="color: #0f5c45;">Hello ${userName},</h3>
+        <p>We noticed a successful login to your TrustHouse account (<strong>${role.toUpperCase()}</strong> access).</p>
+        <div style="background: #f5f5f4; padding: 12px; border-radius: 6px; margin: 15px 0;">
+          <p style="margin: 0;"><strong>Date & Time:</strong> ${timeStr} (West Africa Time)</p>
+          <p style="margin: 5px 0 0 0;"><strong>Account Email:</strong> ${userEmail}</p>
+        </div>
+        <p style="color: #666; font-size: 0.9em;">If this was you, no action is needed. If you did not sign in, please contact TrustHouse support immediately.</p>
+      </div>
+    `,
+  });
+}
+
+/** 7. Agent Account Suspension / Reinstatement Notification */
+export async function sendAgentSuspensionEmail(
+  agentEmail: string,
+  agentName: string,
+  isSuspended: boolean,
+) {
+  const subject = isSuspended
+    ? "Important Notice: TrustHouse Agent Account Suspended"
+    : "Good News: TrustHouse Agent Account Reinstated";
+
+  return sendEmail({
+    to: agentEmail,
+    subject,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h3 style="color: ${isSuspended ? "#dc2626" : "#0f5c45"};">Hi ${agentName},</h3>
+        ${
+          isSuspended
+            ? `<p>Your TrustHouse agent account has been <strong>SUSPENDED</strong> by our administration team.</p>
+               <p>While suspended, your listings may be hidden from search results, and portal access is restricted.</p>
+               <p>Please contact TrustHouse support if you believe this is an error or to appeal this decision.</p>`
+            : `<p>Your TrustHouse agent account suspension has been <strong>LIFTED</strong>.</p>
+               <p>Your portal access is fully restored, and your listings are active.</p>`
+        }
+      </div>
+    `,
+  });
+}
+
+/** 8. Listing Featured Notification */
+export async function sendListingFeaturedEmail(
+  agentEmail: string,
+  agentName: string,
+  listingTitle: string,
+  isFeatured: boolean,
+) {
+  if (!isFeatured) return;
+
+  return sendEmail({
+    to: agentEmail,
+    subject: `🎉 Congratulations! Your listing "${listingTitle}" is now FEATURED!`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h3 style="color: #0f5c45;">Hi ${agentName}, great news! 🌟</h3>
+        <p>Your listing <strong>"${listingTitle}"</strong> has been highlighted as a <strong>Featured Listing</strong> by TrustHouse administrators!</p>
+        <p>Featured listings receive prime placement on our homepage and search results, driving significantly more buyer/tenant inquiries.</p>
+        <p>Check your dashboard to monitor your incoming lead inquiries.</p>
       </div>
     `,
   });

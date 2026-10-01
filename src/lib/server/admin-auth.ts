@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { jwtVerify, SignJWT } from "jose";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
+import { sendLoginNotificationEmail } from "@/lib/server/email";
 
 const ADMIN_JWT_SECRET = new TextEncoder().encode(
   process.env.ADMIN_JWT_SECRET || "trusthouse-admin-jwt-secret-key-2026-auth-protection",
@@ -80,11 +81,22 @@ export const adminLoginServer = createServerFn({ method: "POST" })
       .setExpirationTime("7d")
       .sign(ADMIN_JWT_SECRET);
 
+    // Send login alert email
+    void sendLoginNotificationEmail(email, "TrustHouse Admin", "admin").catch(() => {});
+
     return {
       success: true,
       token,
       user: { email, role: "admin" },
     };
+  });
+
+/** Server function: Send login alert for regular agent users */
+export const notifyAgentLoginServer = createServerFn({ method: "POST" })
+  .validator(z.object({ email: z.string().email(), name: z.string().optional() }))
+  .handler(async ({ data }) => {
+    void sendLoginNotificationEmail(data.email, data.name || "TrustHouse Agent", "agent").catch(() => {});
+    return { success: true };
   });
 
 /** Server function: Verify existing admin session token */
