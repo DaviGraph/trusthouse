@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getAdminToken, setAdminToken } from "@/lib/admin-session";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { authClient, authEnabled } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { adminLoginServer, notifyAgentLoginServer } from "@/lib/server/admin-auth";
 
@@ -104,54 +104,34 @@ function Login() {
         </p>
 
         {authEnabled ? (
-          <>
-            <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
-              <div className="grid gap-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              {error ? <p className="text-sm text-danger">{error}</p> : null}
-              <Button type="submit" disabled={busy} size="lg">
-                {busy ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-            <div className="relative my-6">
-              <div className="h-px bg-border" />
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface px-2 text-xs text-faint">
-                or
-              </span>
+          <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
+            <div className="grid gap-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
-            <div className="grid gap-2">
-              {GROK_PROVIDERS.map((p) => (
-                <Button
-                  key={p.providerId}
-                  type="button"
-                  variant="secondary"
-                  onClick={() => signIn(p.providerId, { callbackURL: "/dashboard" })}
-                >
-                  Continue with {p.label}
-                </Button>
-              ))}
+            <div className="grid gap-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
-          </>
+            {error ? <p className="text-sm text-danger">{error}</p> : null}
+            <Button type="submit" disabled={busy} size="lg">
+              {busy ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
         ) : (
           <p className="mt-6 text-sm text-muted">Sign-in is disabled.</p>
         )}

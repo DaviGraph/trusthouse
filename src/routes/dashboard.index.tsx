@@ -262,6 +262,10 @@ function FollowUpField({
   lead: Inquiry;
   onChange: (value: string) => void;
 }) {
+  if (lead.status === "closed") {
+    return <p className="mt-3 text-sm text-muted">—</p>;
+  }
+
   const local = lead.followUpDue ? toLocalInput(lead.followUpDue) : "";
   return (
     <div>
@@ -317,7 +321,7 @@ function LeadCard({
           <p className="font-medium">{lead.buyerName}</p>
           <p className="text-xs text-muted">{lead.buyerPhone}</p>
         </div>
-        {lead.overdue ? (
+        {lead.overdue && lead.status !== "closed" ? (
           <span className="text-xs font-medium text-danger">Overdue</span>
         ) : null}
       </div>
