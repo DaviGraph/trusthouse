@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { getAdminToken, setAdminToken } from "@/lib/admin-session";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { adminLoginServer } from "@/lib/server/admin-auth";
+import { adminLoginServer, notifyAgentLoginServer } from "@/lib/server/admin-auth";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
@@ -64,7 +64,7 @@ function Login() {
 
       // 2. Normal agent user authentication
       if (authEnabled) {
-        const { error: err } = await authClient.signIn.email({
+        const { data: signInData, error: err } = await authClient.signIn.email({
           email: cleanEmail,
           password,
           callbackURL: "/dashboard",
@@ -73,6 +73,16 @@ function Login() {
           setError(err.message ?? "Could not sign in. Please check your credentials.");
           return;
         }
+
+        // Trigger agent login security alert email
+        try {
+          void notifyAgentLoginServer({
+            data: { email: cleanEmail, name: signInData?.user?.name || undefined },
+          });
+        } catch {
+          /* non-blocking email alert */
+        }
+
         window.location.href = "/dashboard";
       } else {
         setError("Sign-in is currently disabled.");
