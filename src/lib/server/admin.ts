@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
+import {
+  sendClientReviewEmail,
+  sendIdVerificationEmail,
+  sendListingStatusEmail,
+} from "@/lib/server/email";
 import type {
   AdminAgentItem,
   AdminOverviewStats,
@@ -319,6 +324,28 @@ export const updateAgentIdVerification = createServerFn({ method: "POST" })
           id_reviewed_at = now()
       where user_id = ${data.agentUserId}
     `;
+
+    // Trigger ID verification email to agent
+    try {
+      const agentInfo = await sql<{ display_name: string; email?: string }>`
+        select a.display_name, u.email
+        from agents a
+        left join "user" u on u.id = a.user_id
+        where a.user_id = ${data.agentUserId}
+        limit 1
+      `;
+      if (agentInfo[0] && agentInfo[0].email) {
+        void sendIdVerificationEmail(
+          agentInfo[0].email,
+          agentInfo[0].display_name,
+          data.status,
+          data.rejectionReason,
+        );
+      }
+    } catch {
+      /* non-blocking email trigger */
+    }
+
     return { success: true, status: data.status };
   });
 
@@ -431,6 +458,30 @@ export const updateListingAdmin = createServerFn({ method: "POST" })
         proof_owner_phone = coalesce(${data.proofOwnerPhone}, proof_owner_phone)
       where id = ${data.id}
     `;
+
+    // Trigger listing status update email to agent
+    try {
+      const listingInfo = await sql<{ title: string; display_name: string; email?: string }>`
+        select l.title, a.display_name, u.email
+        from listings l
+        join agents a on a.user_id = l.user_id
+        left join "user" u on u.id = a.user_id
+        where l.id = ${data.id}
+        limit 1
+      `;
+      if (listingInfo[0] && listingInfo[0].email) {
+        void sendListingStatusEmail(
+          listingInfo[0].email,
+          listingInfo[0].display_name,
+          listingInfo[0].title,
+          data.moderationStatus || "approved",
+          data.isFeatured,
+        );
+      }
+    } catch {
+      /* non-blocking email trigger */
+    }
+
     return { success: true, id: data.id };
   });
 
@@ -563,6 +614,30 @@ export const createClientReview = createServerFn({ method: "POST" })
       returning *
     `;
     const r: any = rows[0];
+
+    // Trigger client review email notification to agent
+    try {
+      const agentInfo = await sql<{ display_name: string; email?: string }>`
+        select a.display_name, u.email
+        from agents a
+        left join "user" u on u.id = a.user_id
+        where a.user_id = ${data.agentUserId}
+        limit 1
+      `;
+      if (agentInfo[0] && agentInfo[0].email) {
+        void sendClientReviewEmail(
+          agentInfo[0].email,
+          agentInfo[0].display_name,
+          data.clientName,
+          data.rating,
+          data.title,
+          data.comment,
+        );
+      }
+    } catch {
+      /* non-blocking email trigger */
+    }
+
     return {
       id: r.id,
       agentUserId: r.agent_user_id,
