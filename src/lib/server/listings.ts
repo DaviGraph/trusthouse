@@ -18,6 +18,10 @@ const listingInput = z.object({
   title: z.string().trim().min(4).max(120),
   area: z.string().trim().min(2).max(60),
   yearlyRent: z.coerce.number().int().positive().max(1_000_000_000),
+  agencyFee: z.coerce.number().nonnegative().optional().default(0),
+  legalFee: z.coerce.number().nonnegative().optional().default(0),
+  cautionFee: z.coerce.number().nonnegative().optional().default(0),
+  serviceCharge: z.coerce.number().nonnegative().optional().default(0),
   bedrooms: z.coerce.number().int().min(1).max(12),
   bathrooms: z.coerce.number().int().min(1).max(12),
   description: z.string().trim().max(2000).optional().default(""),
@@ -34,14 +38,13 @@ const publicQuery = z.object({
   hideUnverified: z.boolean().optional().default(false),
 });
 
-
 export const listPublicListings = createServerFn({ method: "GET" })
   .validator((input: unknown) => publicQuery.parse(input))
   .handler(async ({ data }): Promise<Listing[]> => {
     const sql = await getSql();
     const rows = await sql<ListingRow>`
-      select l.id, l.user_id, l.title, l.area, l.yearly_rent, l.bedrooms, l.bathrooms,
-             l.description, l.photo_url, l.photo_urls, l.verification_video_url, l.onsite_captured_at,
+      select l.id, l.user_id, l.title, l.area, l.yearly_rent, l.agency_fee, l.legal_fee, l.caution_fee, l.service_charge,
+             l.bedrooms, l.bathrooms, l.description, l.photo_url, l.photo_urls, l.verification_video_url, l.onsite_captured_at,
              l.proof_id_checked, l.proof_ownership_seen, l.proof_onsite_visit, l.proof_owner_phone, l.created_at
       from listings l
       join agents a on a.user_id = l.user_id
@@ -59,8 +62,8 @@ export const getPublicListing = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<Listing | null> => {
     const sql = await getSql();
     const rows = await sql<ListingRow>`
-      select l.id, l.user_id, l.title, l.area, l.yearly_rent, l.bedrooms, l.bathrooms,
-             l.description, l.photo_url, l.photo_urls, l.verification_video_url, l.onsite_captured_at,
+      select l.id, l.user_id, l.title, l.area, l.yearly_rent, l.agency_fee, l.legal_fee, l.caution_fee, l.service_charge,
+             l.bedrooms, l.bathrooms, l.description, l.photo_url, l.photo_urls, l.verification_video_url, l.onsite_captured_at,
              l.proof_id_checked, l.proof_ownership_seen, l.proof_onsite_visit, l.proof_owner_phone, l.created_at
       from listings l
       join agents a on a.user_id = l.user_id
@@ -75,8 +78,8 @@ export const listMyListings = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<Listing[]> => {
     const sql = await getSql();
     const rows = await sql<ListingRow>`
-      select id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-             photo_url, photo_urls, verification_video_url, onsite_captured_at,
+      select id, user_id, title, area, yearly_rent, agency_fee, legal_fee, caution_fee, service_charge,
+             bedrooms, bathrooms, description, photo_url, photo_urls, verification_video_url, onsite_captured_at,
              proof_id_checked, proof_ownership_seen, proof_onsite_visit, proof_owner_phone, created_at
       from listings
       where user_id = ${context.userId}
@@ -91,8 +94,8 @@ export const getMyListing = createServerFn({ method: "GET" })
   .handler(async ({ context, data: id }): Promise<Listing | null> => {
     const sql = await getSql();
     const rows = await sql<ListingRow>`
-      select id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-             photo_url, photo_urls, verification_video_url, onsite_captured_at,
+      select id, user_id, title, area, yearly_rent, agency_fee, legal_fee, caution_fee, service_charge,
+             bedrooms, bathrooms, description, photo_url, photo_urls, verification_video_url, onsite_captured_at,
              proof_id_checked, proof_ownership_seen, proof_onsite_visit, proof_owner_phone, created_at
       from listings
       where id = ${id} and user_id = ${context.userId}
@@ -110,18 +113,20 @@ export const createListing = createServerFn({ method: "POST" })
     const onsiteOk = cap ? checkOnsite(data.area, cap).ok : false;
     const rows = await sql<ListingRow>`
       insert into listings (
-        user_id, title, area, yearly_rent, bedrooms, bathrooms, description, photo_url, photo_urls,
+        user_id, title, area, yearly_rent, agency_fee, legal_fee, caution_fee, service_charge,
+        bedrooms, bathrooms, description, photo_url, photo_urls,
         verification_video_url, proof_id_checked, proof_ownership_seen, proof_onsite_visit, proof_owner_phone,
         onsite_photo_url, onsite_lat, onsite_lng, onsite_accuracy_m, onsite_captured_at
       ) values (
-        ${context.userId}, ${data.title}, ${data.area}, ${data.yearlyRent}, ${data.bedrooms},
-        ${data.bathrooms}, ${data.description}, ${data.photoUrls[0]}, ${data.photoUrls},
+        ${context.userId}, ${data.title}, ${data.area}, ${data.yearlyRent},
+        ${data.agencyFee ?? 0}, ${data.legalFee ?? 0}, ${data.cautionFee ?? 0}, ${data.serviceCharge ?? 0},
+        ${data.bedrooms}, ${data.bathrooms}, ${data.description}, ${data.photoUrls[0]}, ${data.photoUrls},
         ${data.verificationVideoUrl}, ${data.proofIdChecked}, ${data.proofOwnershipSeen}, ${onsiteOk}, ${data.proofOwnerPhone},
         ${cap?.photoUrl ?? null}, ${cap?.lat ?? null}, ${cap?.lng ?? null}, ${cap?.accuracyM ?? null}, ${cap?.capturedAt ?? null}
       )
       returning
-        id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-        photo_url, photo_urls, verification_video_url, onsite_captured_at,
+        id, user_id, title, area, yearly_rent, agency_fee, legal_fee, caution_fee, service_charge,
+        bedrooms, bathrooms, description, photo_url, photo_urls, verification_video_url, onsite_captured_at,
         proof_id_checked, proof_ownership_seen, proof_onsite_visit, proof_owner_phone, created_at
     `;
     return mapListing(rows[0]);
@@ -133,7 +138,6 @@ export const updateListing = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<Listing | null> => {
     const sql = await getSql();
 
-    // Use the new capture if there is one, otherwise re-check the stored one against the (possibly changed) area.
     let cap = data.onsiteCapture;
     if (!cap) {
       const prev = await sql<{
@@ -157,7 +161,6 @@ export const updateListing = createServerFn({ method: "POST" })
         };
       }
     }
-    // A stored capture is judged on distance and accuracy only, not on how old it is.
     const onsiteOk = cap
       ? checkOnsite(data.area, { ...cap, capturedAt: data.onsiteCapture ? cap.capturedAt : new Date().toISOString() }).ok
       : false;
@@ -167,6 +170,10 @@ export const updateListing = createServerFn({ method: "POST" })
         title = ${data.title},
         area = ${data.area},
         yearly_rent = ${data.yearlyRent},
+        agency_fee = ${data.agencyFee ?? 0},
+        legal_fee = ${data.legalFee ?? 0},
+        caution_fee = ${data.cautionFee ?? 0},
+        service_charge = ${data.serviceCharge ?? 0},
         bedrooms = ${data.bedrooms},
         bathrooms = ${data.bathrooms},
         description = ${data.description},
@@ -184,8 +191,8 @@ export const updateListing = createServerFn({ method: "POST" })
         onsite_captured_at = ${cap?.capturedAt ?? null}
       where id = ${data.id} and user_id = ${context.userId}
       returning
-        id, user_id, title, area, yearly_rent, bedrooms, bathrooms, description,
-        photo_url, photo_urls, verification_video_url, onsite_captured_at,
+        id, user_id, title, area, yearly_rent, agency_fee, legal_fee, caution_fee, service_charge,
+        bedrooms, bathrooms, description, photo_url, photo_urls, verification_video_url, onsite_captured_at,
         proof_id_checked, proof_ownership_seen, proof_onsite_visit, proof_owner_phone, created_at
     `;
     return rows[0] ? mapListing(rows[0]) : null;
