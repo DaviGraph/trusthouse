@@ -31,6 +31,47 @@ export function slugifyName(name: string): string {
   return slug || "agent";
 }
 
+export function formatClosingKitWhatsAppMessage({
+  buyerName,
+  title,
+  price,
+  agencyFee = 0,
+  legalFee = 0,
+  cautionFee = 0,
+  serviceCharge = 0,
+  publicUrl,
+}: {
+  buyerName: string;
+  title: string;
+  price: number;
+  agencyFee?: number;
+  legalFee?: number;
+  cautionFee?: number;
+  serviceCharge?: number;
+  publicUrl: string;
+}): string {
+  const rent = price || 0;
+  const agency = agencyFee || 0;
+  const legal = legalFee || 0;
+  const caution = cautionFee || 0;
+  const sc = serviceCharge || 0;
+  const total = rent + agency + legal + caution + sc;
+
+  return `Hello ${buyerName}, here is the verified move-in breakdown for ${title}:
+
+🏡 Rent/Price: ₦${rent.toLocaleString()}
+📋 Agency Fee: ₦${agency.toLocaleString()}
+⚖️ Legal Fee: ₦${legal.toLocaleString()}
+🛡️ Caution Deposit: ₦${caution.toLocaleString()}
+🔧 Service Charge: ₦${sc.toLocaleString()}
+----------------------------------
+💰 Total Move-In Cost: ₦${total.toLocaleString()}
+
+📍 View Photos & Details: ${publicUrl}
+
+Let me know when you would like to schedule an in-person viewing!`;
+}
+
 export const RESERVED_SLUGS = new Set([
   "login",
   "signup",
