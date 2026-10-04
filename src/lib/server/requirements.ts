@@ -73,11 +73,11 @@ export const createBuyerRequirement = createServerFn({ method: "POST" })
       }
     }
 
-    // 2. Insert into buyer_requirements table
+    // 2. Insert into buyer_requirements table with default followup_due_date = NOW() + INTERVAL '2 days'
     await sql`
       insert into buyer_requirements (
         agent_id, buyer_name, buyer_phone, buyer_email, property_type,
-        preferred_location, budget_min, budget_max, bedrooms, timeline, status
+        preferred_location, budget_min, budget_max, bedrooms, timeline, status, followup_due_date
       )
       values (
         ${agentId ?? null},
@@ -90,7 +90,8 @@ export const createBuyerRequirement = createServerFn({ method: "POST" })
         ${data.budgetMax},
         ${data.bedrooms ?? 1},
         ${data.timeline},
-        'New'
+        'New',
+        now() + interval '2 days'
       )
     `;
 
@@ -106,7 +107,7 @@ export const createBuyerRequirement = createServerFn({ method: "POST" })
             ${data.buyerPhone},
             ${`Looking for ${data.propertyType} in ${data.preferredLocation} (Budget: ₦${data.budgetMin.toLocaleString()} - ₦${data.budgetMax.toLocaleString()})`},
             'new',
-            now() + interval '24 hours'
+            now() + interval '2 days'
           )
         `;
       } catch {
@@ -146,7 +147,6 @@ export const listAgentRequirements = createServerFn({ method: "GET" })
   }> => {
     const sql = await getSql();
 
-    // Find agent.id from context.userId
     const agentRows = await sql<{ id: string }>`
       select id from agents where user_id = ${context.userId} limit 1
     `;
@@ -210,7 +210,36 @@ export const updateBuyerRequirementStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// 7. Automated Inventory Matcher: Find matching pipeline buyers for a listing
+// 7. Update Lead Follow-up Reminder / Reschedule Action
+const updateFollowupSchema = z.object({
+  id: z.string().uuid(),
+  followupDueDate: z.string(),
+  status: z.enum(["New", "Contacted", "Viewing Booked", "Closed"]).optional(),
+});
+
+export const updateLeadFollowup = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => updateFollowupSchema.parse(input))
+  .handler(async ({ context, data }): Promise<{ ok: true }> => {
+    const sql = await getSql();
+    if (data.status) {
+      await sql`
+        update buyer_requirements
+        set followup_due_date = ${data.followupDueDate},
+            status = ${data.status}
+        where id = ${data.id}
+      `;
+    } else {
+      await sql`
+        update buyer_requirements
+        set followup_due_date = ${data.followupDueDate}
+        where id = ${data.id}
+      `;
+    }
+    return { ok: true };
+  });
+
+// 8. Automated Inventory Matcher: Find matching pipeline buyers for a listing
 export type MatchedBuyer = BuyerRequirement & {
   matchScore: number;
 };
@@ -221,7 +250,6 @@ export const getMatchingBuyerRequirements = createServerFn({ method: "GET" })
   .handler(async ({ context, data: listingId }): Promise<MatchedBuyer[]> => {
     const sql = await getSql();
 
-    // Fetch listing details
     const listingRows = await sql<{
       id: number;
       user_id: string;
@@ -239,14 +267,12 @@ export const getMatchingBuyerRequirements = createServerFn({ method: "GET" })
     if (!listingRows[0]) return [];
     const listing = listingRows[0];
 
-    // Find agent id
     const agentRows = await sql<{ id: string }>`
       select id from agents where user_id = ${context.userId} limit 1
     `;
     const agentId = agentRows[0]?.id;
     if (!agentId) return [];
 
-    // Query matching buyer requirements
     const rows = await sql<BuyerRequirementRow>`
       select
         id, agent_id, buyer_name, buyer_phone, buyer_email, property_type,
@@ -262,9 +288,8 @@ export const getMatchingBuyerRequirements = createServerFn({ method: "GET" })
 
     const mapped = rows.map(mapBuyerRequirement);
 
-    // Calculate match score
     return mapped.map((req) => {
-      let score = 80; // Base match for meeting budget & bedroom criteria
+      let score = 80;
       const locMatch =
         req.preferredLocation.toLowerCase().includes(listing.area.toLowerCase()) ||
         listing.area.toLowerCase().includes(req.preferredLocation.toLowerCase());
