@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp, MessageCircle, Target } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, MessageCircle, Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ListingForm, toListingPayload, type ListingDraft } from "@/components/listing-form";
 import { Button } from "@/components/ui/button";
+import { downloadMoveInInvoicePDF } from "@/lib/pdf-generator";
 import { getMyListing, updateListing } from "@/lib/server/listings";
 import { getMatchingBuyerRequirements, type MatchedBuyer } from "@/lib/server/requirements";
 import type { Listing } from "@/lib/types";
@@ -21,6 +22,7 @@ function EditListing() {
   const [showMatches, setShowMatches] = useState(true);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   useEffect(() => {
     const id = Number(listingId);
@@ -50,6 +52,23 @@ function EditListing() {
     }
   }
 
+  async function handleDownloadPDF() {
+    if (!listing) return;
+    setDownloadingPdf(true);
+    try {
+      await downloadMoveInInvoicePDF({
+        agentName: "Agent Representative",
+        listing,
+        publicUrl: typeof window !== "undefined" ? window.location.href : "",
+      });
+      toast.success("PDF invoice downloaded.");
+    } catch {
+      toast.error("Could not generate PDF invoice.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
   if (loading) return <div className="h-48 animate-pulse rounded-xl bg-surface-2" />;
   if (!listing) {
     return <p className="text-sm text-muted">That listing was not found.</p>;
@@ -62,8 +81,22 @@ function EditListing() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="font-display text-3xl font-semibold">Edit listing</h1>
-      <p className="mt-1 text-sm text-muted">Update details or the four proofs as you complete them.</p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-semibold">Edit listing</h1>
+          <p className="mt-1 text-sm text-muted">Update details or the four proofs as you complete them.</p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void handleDownloadPDF()}
+          disabled={downloadingPdf}
+        >
+          <FileText className="mr-1.5 size-4 text-primary" />
+          {downloadingPdf ? "Generating PDF…" : "Download PDF Invoice Summary"}
+        </Button>
+      </div>
 
       {/* Automated Inventory Matcher Alert Banner with Closing Kit WhatsApp generator */}
       {matchedBuyers.length > 0 ? (

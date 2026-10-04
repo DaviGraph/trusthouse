@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ArrowLeft, Bath, BedDouble, CheckCircle2, Copy, MapPin, Share2 } from "lucide-react";
+import { ArrowLeft, Bath, BedDouble, CheckCircle2, Copy, FileText, MapPin, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { InquireDialog } from "@/components/inquire-dialog";
@@ -7,6 +7,7 @@ import { ProofChecklist } from "@/components/proof-checklist";
 import { TrustBadge } from "@/components/trust-badge";
 import { Button } from "@/components/ui/button";
 import { formatNairaYear } from "@/lib/format";
+import { downloadMoveInInvoicePDF } from "@/lib/pdf-generator";
 import { getPublicListing } from "@/lib/server/listings";
 import { Route as SlugRoute } from "./$slug";
 
@@ -31,6 +32,7 @@ function ListingDetail() {
   const { listing } = Route.useLoaderData();
   const photos = listing.photoUrls.length > 0 ? listing.photoUrls : [listing.photoUrl];
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const agencyFee = listing.agencyFee ?? 0;
   const legalFee = listing.legalFee ?? 0;
@@ -44,9 +46,26 @@ function ListingDetail() {
     toast.success("Listing link copied to clipboard!");
   }
 
+  async function handleDownloadPDF() {
+    setDownloadingPdf(true);
+    try {
+      await downloadMoveInInvoicePDF({
+        agentName: agent.displayName,
+        agentPhone: agent.phone,
+        listing,
+        publicUrl: window.location.href,
+      });
+      toast.success("PDF invoice downloaded successfully!");
+    } catch {
+      toast.error("Could not generate PDF invoice.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           to="/$slug/listings"
           params={{ slug: agent.slug }}
@@ -55,10 +74,16 @@ function ListingDetail() {
           <ArrowLeft className="size-4" />
           All listings
         </Link>
-        <Button type="button" variant="secondary" size="sm" onClick={copyShareLink}>
-          <Share2 className="mr-1.5 size-3.5" />
-          Share Listing
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => void handleDownloadPDF()} disabled={downloadingPdf}>
+            <FileText className="mr-1.5 size-3.5 text-primary" />
+            {downloadingPdf ? "Generating PDF…" : "Download PDF Invoice Summary"}
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={copyShareLink}>
+            <Share2 className="mr-1.5 size-3.5" />
+            Share Listing
+          </Button>
+        </div>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl bg-surface shadow-card">
@@ -115,7 +140,12 @@ function ListingDetail() {
 
             {/* Itemized Fee Breakdown Section */}
             <div className="mt-6 rounded-xl border border-border bg-surface-2/60 p-5">
-              <h3 className="font-display font-semibold text-lg text-fg mb-3">Itemized Move-In Fee Breakdown</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-semibold text-lg text-fg">Itemized Move-In Fee Breakdown</h3>
+                <Button type="button" variant="ghost" size="sm" className="text-xs text-primary" onClick={() => void handleDownloadPDF()}>
+                  <FileText className="mr-1 size-3.5" /> PDF
+                </Button>
+              </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between py-1 border-b border-border/40">
                   <span className="text-muted">Annual Rent</span>

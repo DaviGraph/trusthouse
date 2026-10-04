@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, BedDouble, Calendar, Clock, Copy, Home, Inbox, MapPin, MessageCircle, UserCheck } from "lucide-react";
+import { AlertCircle, BedDouble, Calendar, Clock, Copy, Home, Inbox, MapPin, MessageCircle, MoreVertical, RefreshCw, UserCheck } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { getMyAgent } from "@/lib/server/agents";
 import {
   listAgentRequirements,
   updateBuyerRequirementStatus,
+  updateLeadFollowup,
 } from "@/lib/server/requirements";
 import type { Agent, BuyerRequirement } from "@/lib/types";
 import { whatsappUrl } from "@/lib/format";
@@ -61,6 +62,24 @@ export function DashboardHome() {
     }
   }
 
+  async function onRescheduleFollowup(id: string, days: number, markContacted = false) {
+    try {
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + days);
+      await updateLeadFollowup({
+        data: {
+          id,
+          followupDueDate: nextDate.toISOString(),
+          status: markContacted ? "Contacted" : undefined,
+        },
+      });
+      toast.success(markContacted ? "Marked as Contacted & reminder reset!" : `Follow-up postponed by ${days} days.`);
+      await refresh();
+    } catch {
+      toast.error("Could not update follow-up date.");
+    }
+  }
+
   async function savePhone() {
     if (!agent) return;
     setSavingPhone(true);
@@ -101,7 +120,7 @@ export function DashboardHome() {
         <div>
           <h1 className="font-display text-3xl font-semibold">Agent CRM Pipeline</h1>
           <p className="mt-1 text-sm text-muted">
-            Manage buyer requirements and automated property matches.
+            Manage buyer requirements, automated matches, and follow-up reminders.
           </p>
         </div>
         {agent ? (
@@ -214,6 +233,7 @@ export function DashboardHome() {
               req={req}
               agentName={agent?.displayName ?? "TrustHouse Agent"}
               onStatusChange={onStatusChange}
+              onRescheduleFollowup={onRescheduleFollowup}
             />
           ))}
         </div>
@@ -255,27 +275,60 @@ function LeadRequirementCard({
   req,
   agentName,
   onStatusChange,
+  onRescheduleFollowup,
 }: {
   req: BuyerRequirement;
   agentName: string;
   onStatusChange: (id: string, status: "New" | "Contacted" | "Viewing Booked" | "Closed") => void;
+  onRescheduleFollowup: (id: string, days: number, markContacted?: boolean) => void;
 }) {
-  const whatsappMsg = `Hello ${req.buyerName}, this is ${agentName} from TrustHouse. I noticed your request for a ${req.propertyType} in ${req.preferredLocation} (Budget: ₦${req.budgetMin.toLocaleString()} - ₦${req.budgetMax.toLocaleString()}). I have properties that match your criteria!`;
+  const isClosed = req.status === "Closed";
+  const now = new Date();
+  const followupDate = req.followupDueDate ? new Date(req.followupDueDate) : null;
 
-  const waHref = whatsappUrl(req.buyerPhone, whatsappMsg);
+  const isOverdue = Boolean(followupDate && followupDate.getTime() < now.getTime() && !isClosed);
+  const isDueToday = Boolean(
+    followupDate &&
+      followupDate.toDateString() === now.toDateString() &&
+      !isOverdue &&
+      !isClosed,
+  );
+
+  const whatsappReplyMsg = `Hello ${req.buyerName}, this is ${agentName} from TrustHouse. I noticed your request for a ${req.propertyType} in ${req.preferredLocation} (Budget: ₦${req.budgetMin.toLocaleString()} - ₦${req.budgetMax.toLocaleString()}). I have properties that match your criteria!`;
+
+  const whatsappFollowupMsg = `Hi ${req.buyerName}, following up on your request for a ${req.propertyType} in ${req.preferredLocation}. Have you had a chance to review the property details?`;
+
+  const waReplyHref = whatsappUrl(req.buyerPhone, whatsappReplyMsg);
+  const waFollowupHref = whatsappUrl(req.buyerPhone, whatsappFollowupMsg);
 
   return (
-    <article className="rounded-xl bg-surface p-5 shadow-card border border-border/60 transition-shadow hover:shadow-md">
+    <article
+      className={cn(
+        "rounded-xl bg-surface p-5 shadow-card border transition-shadow hover:shadow-md",
+        isOverdue ? "border-red-500/50 bg-red-500/5" : "border-border/60",
+      )}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-display text-lg font-semibold">{req.buyerName}</h3>
             <StatusBadge status={req.status} />
+
+            {/* Follow-up Reminder Indicators */}
+            {isOverdue ? (
+              <Badge className="bg-red-500/20 text-red-800 border-red-500/40 text-xs font-semibold">
+                <AlertCircle className="mr-1 size-3 text-red-600" /> Overdue
+              </Badge>
+            ) : isDueToday ? (
+              <Badge className="bg-amber-500/20 text-amber-800 border-amber-500/40 text-xs font-semibold">
+                <Clock className="mr-1 size-3 text-amber-600" /> Due Today
+              </Badge>
+            ) : null}
           </div>
           <p className="mt-0.5 text-xs text-muted">{req.buyerPhone} {req.buyerEmail ? `· ${req.buyerEmail}` : ""}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             className="h-9 rounded-md border border-input bg-background px-2.5 text-xs font-medium shadow-xs outline-none"
             value={req.status}
@@ -287,13 +340,42 @@ function LeadRequirementCard({
             <option value="Closed">Closed</option>
           </select>
 
-          {/* Primary CTA: Reply on WhatsApp */}
-          <Button asChild variant="whatsapp" size="sm">
-            <a href={waHref} target="_blank" rel="noreferrer">
-              <MessageCircle className="mr-1.5 size-4" />
-              Reply on WhatsApp
-            </a>
-          </Button>
+          {/* Overdue Specific Action: Send Follow-Up CTA */}
+          {isOverdue ? (
+            <Button asChild variant="whatsapp" size="sm" className="bg-red-600 hover:bg-red-700 text-white">
+              <a href={waFollowupHref} target="_blank" rel="noreferrer">
+                <MessageCircle className="mr-1.5 size-4" />
+                Send Follow-Up
+              </a>
+            </Button>
+          ) : (
+            <Button asChild variant="whatsapp" size="sm">
+              <a href={waReplyHref} target="_blank" rel="noreferrer">
+                <MessageCircle className="mr-1.5 size-4" />
+                Reply on WhatsApp
+              </a>
+            </Button>
+          )}
+
+          {/* Quick Reschedule Action Dropdown */}
+          <select
+            className="h-9 rounded-md border border-input bg-background px-2 text-xs text-muted shadow-xs outline-none cursor-pointer"
+            defaultValue=""
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "2days") onRescheduleFollowup(req.id, 2);
+              if (val === "1week") onRescheduleFollowup(req.id, 7);
+              if (val === "contacted") onRescheduleFollowup(req.id, 2, true);
+              e.target.value = "";
+            }}
+          >
+            <option value="" disabled>
+              ⏰ Reschedule…
+            </option>
+            <option value="2days">Snooze 2 Days</option>
+            <option value="1week">Snooze 1 Week</option>
+            <option value="contacted">Mark Contacted & Reset</option>
+          </select>
         </div>
       </div>
 
@@ -322,10 +404,10 @@ function LeadRequirementCard({
         </div>
 
         <div>
-          <span className="text-muted block">Timeline:</span>
+          <span className="text-muted block">Timeline / Follow-up:</span>
           <span className="font-semibold text-fg flex items-center gap-1">
             <Clock className="size-3 text-muted" />
-            {req.timeline}
+            {req.timeline} {followupDate && !isClosed ? `(Due ${followupDate.toLocaleDateString()})` : ""}
           </span>
         </div>
       </div>
