@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Building2, CheckCircle2, Search } from "lucide-react";
+import { BuyerRequirementDialog } from "@/components/buyer-requirement-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Route as SlugRoute } from "./$slug";
@@ -39,14 +40,22 @@ function AgentEntry() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center justify-between gap-2 font-display text-lg font-semibold">
-              I am a buyer, looking for a property
+              Browse {agent.displayName.split(" ")[0]}'s verified listings
               <ArrowRight className="size-4 text-muted transition-transform duration-200 group-hover:translate-x-0.5" />
             </span>
             <span className="mt-1 block text-sm text-muted">
-              See {agent.displayName.split(" ")[0]}'s verified Lagos listings. No account needed.
+              See active Lagos properties with verified documentation.
             </span>
           </span>
         </Link>
+
+        <BuyerRequirementDialog
+          agentSlug={agent.slug}
+          agentName={agent.displayName}
+          triggerClassName="w-full justify-between h-auto p-5 text-left bg-surface hover:bg-surface-2 text-fg border border-border shadow-card rounded-xl font-normal"
+          triggerLabel={`Submit Property Requirements to ${agent.displayName.split(" ")[0]}`}
+        />
+
         <Link
           to="/login"
           className="flex items-start gap-4 rounded-xl bg-surface p-5 text-fg no-underline shadow-[0_0_0_1px_rgba(28,25,23,0.06)]"
