@@ -18,6 +18,7 @@ export const ID_VERIFICATION_STATUS_LABEL: Record<IdVerificationStatus, string> 
 };
 
 export type Agent = {
+  id?: string;
   userId: string;
   slug: string;
   displayName: string;
@@ -39,6 +40,10 @@ export type Listing = Proofs & {
   title: string;
   area: string;
   yearlyRent: number;
+  agencyFee?: number;
+  legalFee?: number;
+  cautionFee?: number;
+  serviceCharge?: number;
   bedrooms: number;
   bathrooms: number;
   description: string;
@@ -55,6 +60,23 @@ export type Listing = Proofs & {
   agentPhone?: string;
   agentAvatarUrl?: string | null;
   agentVerified?: boolean;
+};
+
+export type BuyerRequirement = {
+  id: string;
+  agentId?: string | null;
+  buyerName: string;
+  buyerPhone: string;
+  buyerEmail?: string | null;
+  propertyType: string;
+  preferredLocation: string;
+  budgetMin: number;
+  budgetMax: number;
+  bedrooms: number;
+  timeline: string;
+  status: string;
+  followupDueDate?: string | null;
+  createdAt: string;
 };
 
 export type Inquiry = {
@@ -128,4 +150,3 @@ export const LEAD_STATUSES: LeadStatus[] = [
   "viewing_booked",
   "closed",
 ];
-
