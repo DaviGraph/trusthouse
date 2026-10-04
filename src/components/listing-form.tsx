@@ -14,6 +14,10 @@ export type ListingDraft = {
   title: string;
   area: string;
   yearlyRent: string;
+  agencyFee: string;
+  legalFee: string;
+  cautionFee: string;
+  serviceCharge: string;
   bedrooms: string;
   bathrooms: string;
   description: string;
@@ -25,6 +29,10 @@ export function listingToDraft(listing?: Listing): ListingDraft {
     title: listing?.title ?? "",
     area: listing?.area ?? "Lekki Phase 1",
     yearlyRent: listing ? String(listing.yearlyRent) : "",
+    agencyFee: listing?.agencyFee ? String(listing.agencyFee) : "0",
+    legalFee: listing?.legalFee ? String(listing.legalFee) : "0",
+    cautionFee: listing?.cautionFee ? String(listing.cautionFee) : "0",
+    serviceCharge: listing?.serviceCharge ? String(listing.serviceCharge) : "0",
     bedrooms: listing ? String(listing.bedrooms) : "2",
     bathrooms: listing ? String(listing.bathrooms) : "2",
     description: listing?.description ?? "",
@@ -41,6 +49,10 @@ export function toListingPayload(draft: ListingDraft) {
     title: draft.title,
     area: draft.area,
     yearlyRent: Number(String(draft.yearlyRent).replace(/[^\d]/g, "")),
+    agencyFee: Number(String(draft.agencyFee).replace(/[^\d]/g, "")) || 0,
+    legalFee: Number(String(draft.legalFee).replace(/[^\d]/g, "")) || 0,
+    cautionFee: Number(String(draft.cautionFee).replace(/[^\d]/g, "")) || 0,
+    serviceCharge: Number(String(draft.serviceCharge).replace(/[^\d]/g, "")) || 0,
     bedrooms: Number(draft.bedrooms),
     bathrooms: Number(draft.bathrooms),
     description: draft.description,
@@ -137,7 +149,7 @@ export function ListingForm({
           </select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="rent">Yearly rent (naira)</Label>
+          <Label htmlFor="rent">Yearly rent (₦)</Label>
           <Input
             id="rent"
             required
@@ -148,6 +160,54 @@ export function ListingForm({
           />
         </div>
       </div>
+
+      {/* Itemized Fee Breakdown Fields */}
+      <div className="rounded-lg bg-surface-2 p-4">
+        <h4 className="font-display font-semibold text-sm mb-3">Itemized Move-in Fee Breakdown</h4>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="agencyFee" className="text-xs">Agency Fee (₦)</Label>
+            <Input
+              id="agencyFee"
+              inputMode="numeric"
+              placeholder="800000"
+              value={draft.agencyFee}
+              onChange={(e) => setDraft({ ...draft, agencyFee: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="legalFee" className="text-xs">Legal / Legal Fee (₦)</Label>
+            <Input
+              id="legalFee"
+              inputMode="numeric"
+              placeholder="800000"
+              value={draft.legalFee}
+              onChange={(e) => setDraft({ ...draft, legalFee: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="cautionFee" className="text-xs">Caution Deposit (₦)</Label>
+            <Input
+              id="cautionFee"
+              inputMode="numeric"
+              placeholder="500000"
+              value={draft.cautionFee}
+              onChange={(e) => setDraft({ ...draft, cautionFee: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="serviceCharge" className="text-xs">Service Charge (₦)</Label>
+            <Input
+              id="serviceCharge"
+              inputMode="numeric"
+              placeholder="1200000"
+              value={draft.serviceCharge}
+              onChange={(e) => setDraft({ ...draft, serviceCharge: e.target.value })}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor="beds">Bedrooms</Label>
