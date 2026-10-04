@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
+import { mapBuyerRequirement, type BuyerRequirementRow } from "@/lib/server/mappers";
 import { sendInquiryNotificationEmail } from "@/lib/server/email";
+import type { BuyerRequirement } from "@/lib/types";
 
 const requirementSchema = z.object({
   agentSlug: z.string().optional(),
@@ -128,4 +131,148 @@ export const createBuyerRequirement = createServerFn({ method: "POST" })
     }
 
     return { ok: true, agentName };
+  });
+
+// 5. CRM Pipeline: List Agent Buyer Requirements & Overview Metrics
+export const listAgentRequirements = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<{
+    requirements: BuyerRequirement[];
+    stats: {
+      totalActiveLeads: number;
+      newInquiries: number;
+      overdueFollowups: number;
+    };
+  }> => {
+    const sql = await getSql();
+
+    // Find agent.id from context.userId
+    const agentRows = await sql<{ id: string }>`
+      select id from agents where user_id = ${context.userId} limit 1
+    `;
+    const agentId = agentRows[0]?.id;
+
+    if (!agentId) {
+      return {
+        requirements: [],
+        stats: { totalActiveLeads: 0, newInquiries: 0, overdueFollowups: 0 },
+      };
+    }
+
+    const rows = await sql<BuyerRequirementRow>`
+      select
+        id, agent_id, buyer_name, buyer_phone, buyer_email, property_type,
+        preferred_location, budget_min, budget_max, bedrooms, timeline, status,
+        followup_due_date, created_at
+      from buyer_requirements
+      where agent_id = ${agentId}
+      order by created_at desc
+    `;
+
+    const requirements = rows.map(mapBuyerRequirement);
+
+    // Compute metric cards
+    const totalActiveLeads = requirements.filter((r) => r.status !== "Closed").length;
+    const newInquiries = requirements.filter((r) => r.status === "New").length;
+    const overdueFollowups = requirements.filter(
+      (r) =>
+        r.status !== "Closed" &&
+        r.followupDueDate &&
+        new Date(r.followupDueDate).getTime() < Date.now(),
+    ).length;
+
+    return {
+      requirements,
+      stats: {
+        totalActiveLeads,
+        newInquiries,
+        overdueFollowups,
+      },
+    };
+  });
+
+// 6. Update Buyer Requirement Status
+const updateReqStatusSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["New", "Contacted", "Viewing Booked", "Closed"]),
+});
+
+export const updateBuyerRequirementStatus = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => updateReqStatusSchema.parse(input))
+  .handler(async ({ context, data }): Promise<{ ok: true }> => {
+    const sql = await getSql();
+    await sql`
+      update buyer_requirements
+      set status = ${data.status}
+      where id = ${data.id}
+    `;
+    return { ok: true };
+  });
+
+// 7. Automated Inventory Matcher: Find matching pipeline buyers for a listing
+export type MatchedBuyer = BuyerRequirement & {
+  matchScore: number;
+};
+
+export const getMatchingBuyerRequirements = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator((listingId: number) => listingId)
+  .handler(async ({ context, data: listingId }): Promise<MatchedBuyer[]> => {
+    const sql = await getSql();
+
+    // Fetch listing details
+    const listingRows = await sql<{
+      id: number;
+      user_id: string;
+      title: string;
+      area: string;
+      yearly_rent: number;
+      bedrooms: number;
+    }>`
+      select id, user_id, title, area, yearly_rent, bedrooms
+      from listings
+      where id = ${listingId} and user_id = ${context.userId}
+      limit 1
+    `;
+
+    if (!listingRows[0]) return [];
+    const listing = listingRows[0];
+
+    // Find agent id
+    const agentRows = await sql<{ id: string }>`
+      select id from agents where user_id = ${context.userId} limit 1
+    `;
+    const agentId = agentRows[0]?.id;
+    if (!agentId) return [];
+
+    // Query matching buyer requirements
+    const rows = await sql<BuyerRequirementRow>`
+      select
+        id, agent_id, buyer_name, buyer_phone, buyer_email, property_type,
+        preferred_location, budget_min, budget_max, bedrooms, timeline, status,
+        followup_due_date, created_at
+      from buyer_requirements
+      where agent_id = ${agentId}
+        and status != 'Closed'
+        and budget_max >= ${listing.yearly_rent}
+        and bedrooms <= ${listing.bedrooms + 1}
+      order by budget_max desc
+    `;
+
+    const mapped = rows.map(mapBuyerRequirement);
+
+    // Calculate match score
+    return mapped.map((req) => {
+      let score = 80; // Base match for meeting budget & bedroom criteria
+      const locMatch =
+        req.preferredLocation.toLowerCase().includes(listing.area.toLowerCase()) ||
+        listing.area.toLowerCase().includes(req.preferredLocation.toLowerCase());
+      if (locMatch) score += 15;
+      if (req.bedrooms === listing.bedrooms) score += 5;
+      return {
+        ...req,
+        matchScore: Math.min(score, 100),
+      };
+    });
   });
