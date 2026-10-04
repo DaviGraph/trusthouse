@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getMyListing, updateListing } from "@/lib/server/listings";
 import { getMatchingBuyerRequirements, type MatchedBuyer } from "@/lib/server/requirements";
 import type { Listing } from "@/lib/types";
-import { whatsappUrl } from "@/lib/format";
+import { formatClosingKitWhatsAppMessage, whatsappUrl } from "@/lib/format";
 
 export const Route = createFileRoute("/dashboard/listings_/$listingId")({
   component: EditListing,
@@ -55,12 +55,17 @@ function EditListing() {
     return <p className="text-sm text-muted">That listing was not found.</p>;
   }
 
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const publicListingUrl = listing.agentSlug
+    ? `${origin}/${listing.agentSlug}/listings/${listing.id}`
+    : `${origin}/p/${listing.id}`;
+
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="font-display text-3xl font-semibold">Edit listing</h1>
       <p className="mt-1 text-sm text-muted">Update details or the four proofs as you complete them.</p>
 
-      {/* Automated Inventory Matcher Alert Banner */}
+      {/* Automated Inventory Matcher Alert Banner with Closing Kit WhatsApp generator */}
       {matchedBuyers.length > 0 ? (
         <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-100">
           <div className="flex items-center justify-between">
@@ -84,7 +89,17 @@ function EditListing() {
           {showMatches ? (
             <div className="mt-3 grid gap-3 border-t border-emerald-500/20 pt-3">
               {matchedBuyers.map((mb) => {
-                const waMsg = `Hello ${mb.buyerName}, I have a new listing matching your requirements: "${listing.title}" in ${listing.area} for ₦${listing.yearlyRent.toLocaleString()}/year.`;
+                const closingKitMsg = formatClosingKitWhatsAppMessage({
+                  buyerName: mb.buyerName,
+                  title: listing.title,
+                  price: listing.yearlyRent,
+                  agencyFee: listing.agencyFee,
+                  legalFee: listing.legalFee,
+                  cautionFee: listing.cautionFee,
+                  serviceCharge: listing.serviceCharge,
+                  publicUrl: publicListingUrl,
+                });
+
                 return (
                   <div
                     key={mb.id}
@@ -102,9 +117,9 @@ function EditListing() {
                       </p>
                     </div>
                     <Button asChild variant="whatsapp" size="sm">
-                      <a href={whatsappUrl(mb.buyerPhone, waMsg)} target="_blank" rel="noreferrer">
+                      <a href={whatsappUrl(mb.buyerPhone, closingKitMsg)} target="_blank" rel="noreferrer">
                         <MessageCircle className="mr-1 size-3.5" />
-                        WhatsApp Lead
+                        Send Closing Kit
                       </a>
                     </Button>
                   </div>
